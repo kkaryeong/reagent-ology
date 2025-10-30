@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>Reagent-ology</title>
+<style>
+    body { 
+        font-family: Arial, sans-serif; 
+        margin: 0; 
+        padding: 0;
+        background-image: url('lab.jpg');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        color: white;
+    }
+    header {
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        padding: 10px 20px; 
+        background-color: rgba(144,178,187,0.95);
+        color: white;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        backdrop-filter: blur(4px);
+    }
+    header h1 { margin: 0; font-size: 1.4rem; }
+    #login-form input { margin-right: 5px; padding:5px; border-radius:3px; border:1px solid #ccc; }
+    #login-form button { padding:5px 10px; border:none; border-radius:3px; background-color:#1b8cae; color:white; cursor:pointer; }
+    #login-form button:hover { background-color:#147d99; }
+
+    nav {
+        display: flex; 
+        justify-content: flex-end; 
+        background-color: rgba(144,178,187,0.95); 
+        padding: 8px 20px;
+    }
+    nav button {
+        padding: 6px 12px;
+        margin-left: 8px;
+        background-color: transparent;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        font-weight: 600;
+    }
+    nav button:hover { background-color: rgba(0,86,179,0.2); }
+
+    .page { display: none; margin: 20px; background-color: rgba(0,0,0,0.45); padding: 20px; border-radius: 8px; }
+    #about {
+        display: block;
+        max-height: 700px;
+        overflow-y: auto;
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+    }
+    #about::-webkit-scrollbar { width: 8px; }
+    #about::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 4px; }
+    .about-section {
+        margin-bottom: 20px;
+        padding: 16px;
+        background: rgba(0, 0, 0, 0.35);
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+        transition: transform 0.12s;
+    }
+    .about-section:hover { transform: translateY(-4px); }
+    .about-section h3 { margin-top: 0; color: #ffffff; font-size: 1.15em; }
+    .about-section p, .about-section li { line-height: 1.6; color: #ecf0f1; }
+    .about-section ul { padding-left: 20px; }
+    #about h2 { color: #ffffff; }
+
+    li { 
+        margin-bottom: 10px; 
+        padding: 10px;
+        background-color: rgba(79, 128, 147, 0.72);
+        border-radius: 6px;
+        list-style:none;
+    }
+    input, button.action-btn, select { margin-right:5px; padding:6px; border-radius:4px; border:1px solid #ccc; }
+    button.action-btn { cursor:pointer; border:none; color:white; padding:6px 8px; margin-left:6px; }
+    button.action-btn.edit { background-color:#ffc107; color:black; }
+    button.action-btn.edit:hover { background-color:#e0a800; }
+    button.action-btn.delete { background-color:#dc3545; }
+    button.action-btn.delete:hover { background-color:#c82333; }
+    button.action-btn.use { background-color:#28a745; }
+    button.action-btn.use:hover { background-color:#218838; }
+    button.action-btn.discard { background-color:#6c757d; }
+    button.action-btn.discard:hover { background-color:#5a6268; }
+    button.action-btn.scale { background-color:#17a2b8; }
+    button.action-btn.scale:hover { background-color:#138496; }
+
+    .controls { margin-bottom: 12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .small { padding:4px 8px; font-size:0.9rem; }
+
+    #chemical-detail { padding: 10px; background: rgba(0,0,0,0.4); border-radius:8px; }
+    .topbar-right { display:flex; gap:8px; align-items:center; }
+    .danger-note { color:#ffdddd; background: rgba(220,53,69,0.12); padding:8px; border-radius:6px; margin-top:8px; }
+    .meta { font-size:0.9rem; color:#e6f1f5; margin-top:8px; }
+</style>
+</head>
+<body>
+    <!-- 헤더 -->
+    <header>
+        <div id="logo"><h1>Reagent-ology</h1></div>
+        <div class="topbar-right">
+            <span id="whoami" style="font-weight:600;"></span>
+            <button id="logoutBtn" style="display:none;" onclick="logout()" class="small">Logout</button>
+        </div>
+    </header>
+
+    <!-- 로그인 화면 -->
+    <div id="login-page" style="padding:20px;">
+        <h1>Reagent-ology Login</h1>
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="login()">Login</button>
+        <button onclick="signup()">Sign Up</button>
+        <div class="danger-note">
+            <strong>주의:</strong> 현재는 로컬 데모 모드입니다. 실제 운영 시 서버 기반 인증(해시+HTTPS)으로 교체하세요.
+        </div>
+    </div>
+
+    <!-- 메인 영역 -->
+    <div id="main-page" style="display:none; padding:20px;">
+        <!-- 상단 네비게이션 -->
+        <nav>
+            <button onclick="navigateTo('about')">기업 소개</button>
+            <button onclick="navigateTo('add')">시약 등록</button>
+            <button onclick="navigateTo('discard')">시약 폐기</button>
+            <button onclick="navigateTo('inventory')">연구실 보유 물질</button>
+            <button onclick="navigateTo('usage')">시약 사용 현황</button>
+            <button onclick="navigateTo('auto-db')">자동완성 DB</button>
+        </nav>
+
+        <!-- 각 페이지 영역 -->
+        <div id="about" class="page">
+            <h2>Reagent-ology 소개</h2>
+            <div class="about-section">
+                <h3>회사 비전</h3>
+                <p>우리는 연구실의 안전하고 효율적인 시약 관리를 위해 최첨단 디지털 솔루션을 제공합니다.</p>
+            </div>
+            <div class="about-section">
+                <h3>주요 기능</h3>
+                <ul>
+                    <li>전 주기 시약 관리 (등록, 사용, 이동, 폐기)</li>
+                    <li>GHS 기반 분류 및 경고 시스템</li>
+                    <li>법적 규제 준수 지원</li>
+                    <li>NFC 스티커 기반 시약 태깅</li>
+                    <li>사용량, 폐기량, 보관 현황 자동 기록</li>
+                </ul>
+            </div>
+            <div class="about-section">
+                <h3>연구실 도입 효과</h3>
+                <p>사용자는 직관적인 대시보드로 실험실 운영 상황을 한눈에 확인할 수 있으며, 안전 사고를 예방하고 효율적인 시약 구매 계획을 수립할 수 있습니다.</p>
+            </div>
+        </div>
+
+        <div id="add" class="page">
+            <h2>시약 등록 / 수정</h2>
+            <div class="controls">
+                <input type="hidden" id="edit-id">
+                <input type="text" id="name" placeholder="Name" list="chemical-suggestions" autocomplete="off">
+                <datalist id="chemical-suggestions"></datalist>
+                <input type="text" id="formula" placeholder="Formula">
+                <input type="text" id="cas" placeholder="CAS 번호">
+                <input type="text" id="location" placeholder="Location">
+                <input type="text" id="storage" placeholder="보관 조건">
+                <input type="date" id="expiry" placeholder="유통기한">
+                <input type="text" id="hazard" placeholder="GHS 분류 (콤마로 구분)">
+                <input type="text" id="disposal" placeholder="폐기 방법">
+                <input type="number" step="0.01" id="quantity" placeholder="Quantity (ml/g)">
+                <button onclick="saveChemical()" class="action-btn small">Save</button>
+                <button onclick="resetForm()" class="small">Clear</button>
+            </div>
+            <div id="form-note" class="meta">필수: Name, Formula, Location, Quantity</div>
+        </div>
+
+        <div id="discard" class="page">
+            <h2>시약 폐기</h2>
+            <div class="controls">
+                <button onclick="autoDiscardReport()" class="small">폐기 리포트 생성 (CSV)</button>
+            </div>
+            <ul id="discard-list"></ul>
+        </div>
+
+        <div id="inventory" class="page">
+            <h2>연구실 보유 물질</h2>
+            <div class="controls">
+                <input type="text" id="search" placeholder="검색: 이름/공식/CAS..." oninput="renderList()">
+                <select id="filterGHS" onchange="renderList()">
+                    <option value="">--GHS 필터--</option>
+                    <option>Flammable</option>
+                    <option>Toxic</option>
+                    <option>Corrosive</option>
+                    <option>Oxidizer</option>
+                </select>
+                <select id="sortBy" onchange="renderList()">
+                    <option value="id">정렬: 등록순</option>
+                    <option value="name">이름</option>
+                    <option value="quantity">수량(내림)</option>
+                </select>
+                <button onclick="exportCSV()" class="small">CSV 내보내기</button>
+            </div>
+            <ul id="chemical-list"></ul>
+        </div>
+
+        <div id="auto-db" class="page">
+            <h2>자동완성 DB 관리 (로컬 CSV)</h2>
+            <div class="controls">
+                <input type="text" id="auto-name" placeholder="Name">
+                <input type="text" id="auto-formula" placeholder="Formula">
+                <input type="text" id="auto-synonyms" placeholder="Synonyms (세미콜론 ; 구분)">
+                <button class="small" onclick="addLocalAutoItem()">추가</button>
+            </div>
+            <ul id="auto-db-list"></ul>
+        </div>
+
+        <div id="usage" class="page">
+            <h2>시약 사용 현황</h2>
+            <div class="controls">
+                <button onclick="resetUsageStats()" class="small">사용 통계 리셋</button>
+            </div>
+            <ul id="usage-list"></ul>
+        </div>
+
+        <!-- 상세 페이지 -->
+        <div id="detail-page" class="page">
+            <button onclick="showPage('inventory')" class="small">← 뒤로</button>
+            <div id="chemical-detail"></div>
+        </div>
+    </div>
+
+<script>
+const API_BASE = 'http://127.0.0.1:8000/api';
+const USER_KEY = 'reagentology_users_v1';
+const LOGGED_KEY = 'reagentology_loggedin';
+const SEED_KEY = 'reagentology_seeded';
+
+const DEFAULT_CHEMS = [
+    { name: 'Acetone', formula: 'C3H6O', cas: '67-64-1', ghs: ['Flammable'], location: 'Shelf A', storage: 'RT', quantity: 500, disposal: '화학폐기물' },
+    { name: 'Ethanol', formula: 'C2H6O', cas: '64-17-5', ghs: ['Flammable'], location: 'Shelf B', storage: 'RT', quantity: 1000, disposal: '화학폐기물' },
+    { name: 'Methanol', formula: 'CH3OH', cas: '67-56-1', ghs: ['Flammable', 'Toxic'], location: 'Shelf A', storage: 'RT', quantity: 300, disposal: '화학폐기물' },
+    { name: 'Sodium Chloride', formula: 'NaCl', cas: '7647-14-5', ghs: [], location: 'Shelf C', storage: 'RT', quantity: 1000, disposal: '일반폐기물' },
+];
+
+let chemicals = [];
+let suppressHashRoute = false;
+let autocompleteTimer = null;
+let autocompleteAbort = null;
+
+function parseGhsInput(value) {
+    if(!value) return [];
+    return value.split(',').map(s => s.trim()).filter(Boolean);
+}
+
+function escapeHtml(str) {
+    if(str === undefined || str === null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+async function apiRequest(path, options = {}) {
+    const url = `${API_BASE}${path}`;
+    const config = { method: options.method || 'GET', headers: options.headers ? { ...options.headers } : {} };
+    if(options.body !== undefined) {
+        if(!(options.body instanceof FormData)) {
+            config.body = JSON.stringify(options.body);
+            config.headers['Content-Type'] = 'application/json';
+        } else {
+            config.body = options.body;
+        }
+    }
+    const response = await fetch(url, config);
+    const text = await response.text();
+    let payload = null;
+    if(text) {
+        try {
+            payload = JSON.parse(text);
+        } catch (err) {
+            payload = text;
+        }
+    }
+    if(!response.ok) {
+        const detail = payload && payload.detail ? payload.detail : response.statusText;
+        throw new Error(detail || '요청에 실패했습니다.');
+    }
+    return payload;
+}
+
+function handleApiError(err, message) {
+    console.error(err);
+    alert(`${message}\n(${err.message || err})`);
+}
+
+function replaceReagentInState(reagent) {
+    if(!reagent) return;
+    const idx = chemicals.findIndex(c => c.id === reagent.id);
+    if(idx >= 0) {
+        chemicals[idx] = reagent;
+    } else {
+        chemicals.push(reagent);
+    }
+    chemicals.sort((a, b) => (a.id || 0) - (b.id || 0));
+}
+
+function removeReagentFromState(id) {
+    chemicals = chemicals.filter(c => c.id !== id);
+}
+
+async function refreshReagents(showAlert = true) {
+    try {
+        const data = await apiRequest('/reagents');
+        chemicals = Array.isArray(data) ? data : [];
+    } catch (err) {
+        chemicals = [];
+        if(showAlert) handleApiError(err, '시약 목록을 불러올 수 없습니다.');
+    }
+}
+
+async function seedDefaultDataIfNeeded() {
+    try {
+        if(localStorage.getItem(SEED_KEY)) return;
+    } catch (err) {
+        console.warn('LocalStorage unavailable, skip seeding.');
+        return;
+    }
+    if(chemicals.length) return;
+    for(const sample of DEFAULT_CHEMS) {
+        const payload = {
+            name: sample.name,
+            formula: sample.formula,
+            cas: sample.cas || null,
+            location: sample.location,
+            storage: sample.storage || null,
+            expiry: null,
+            hazard: sample.ghs.length ? sample.ghs.join(', ') : null,
+            ghs: sample.ghs.slice(),
+            disposal: sample.disposal || null,
+            quantity: sample.quantity,
+        };
+        try {
+            await apiRequest('/reagents', { method: 'POST', body: payload });
+        } catch (err) {
+            console.warn('Failed to seed reagent', sample.name, err);
+        }
+    }
+    await refreshReagents(false);
+    try {
+        localStorage.setItem(SEED_KEY, '1');
+    } catch (err) {
+        console.warn('Failed to persist seed flag', err);
+    }
+}
+
+function bindAutocomplete() {
+    const nameInput = document.getElementById('name');
+    const formulaInput = document.getElementById('formula');
+    const datalist = document.getElementById('chemical-suggestions');
+    if(!nameInput || !datalist) return;
+    if(nameInput.dataset.autocompleteBound) return;
+    nameInput.dataset.autocompleteBound = '1';
+
+    nameInput.addEventListener('input', (event) => {
+        const value = event.target.value.trim();
+        if(autocompleteTimer) {
+            clearTimeout(autocompleteTimer);
+            autocompleteTimer = null;
+        }
+        if(value.length < 2) {
+            datalist.innerHTML = '';
+            return;
+        }
+        autocompleteTimer = setTimeout(async () => {
+            const suggestions = await fetchAutocomplete(value);
+            datalist.innerHTML = suggestions.map(item => {
+                const label = item.formula ? `${item.name} (${item.formula})` : item.name;
+                const safeFormula = (item.formula || '').replace(/"/g, '&quot;');
+                return `<option value="${escapeHtml(item.name)}" data-formula="${safeFormula}">${label}</option>`;
+            }).join('');
+        }, 250);
+    });
+
+    nameInput.addEventListener('change', () => {
+        const currentValue = nameInput.value.trim();
+        Array.from(datalist.options).forEach(option => {
+            if(option.value === currentValue && option.dataset.formula && formulaInput && !formulaInput.value.trim()) {
+                formulaInput.value = option.dataset.formula;
+            }
+        });
+    });
+}
+
+async function fetchAutocomplete(query) {
+    if(!query) return [];
+    if(autocompleteAbort) {
+        autocompleteAbort.abort();
+    }
+    autocompleteAbort = new AbortController();
+    const limit = 8;
+    try {
+        // 1) 로컬 DB 우선
+        const localRes = await fetch(`${API_BASE}/autocomplete/local?q=${encodeURIComponent(query)}&limit=${limit}`, { signal: autocompleteAbort.signal });
+        let suggestions = [];
+        if(localRes.ok) {
+            const payload = await localRes.json();
+            suggestions = Array.isArray(payload.suggestions) ? payload.suggestions : [];
+        }
+
+        // 2) 충분치 않으면 원격 보강
+        if(suggestions.length < limit) {
+            try {
+                const remoteRes = await fetch(`${API_BASE}/autocomplete?q=${encodeURIComponent(query)}&limit=${limit}`, { signal: autocompleteAbort.signal });
+                if(remoteRes.ok) {
+                    const payloadR = await remoteRes.json();
+                    const remote = Array.isArray(payloadR.suggestions) ? payloadR.suggestions : [];
+                    const seen = new Set(suggestions.map(s => s.name));
+                    for(const r of remote) {
+                        if(!r || !r.name || seen.has(r.name)) continue;
+                        suggestions.push(r);
+                        seen.add(r.name);
+                        if(suggestions.length >= limit) break;
+                    }
+                }
+            } catch (err) {
+                if(err.name !== 'AbortError') console.warn('Remote autocomplete failed', err);
+            }
+        }
+        return suggestions;
+    } catch (err) {
+        if(err.name !== 'AbortError') console.warn('Autocomplete request failed', err);
+        return [];
+    }
+}
+
+function resetForm() {
+    ['edit-id','name','formula','cas','location','storage','expiry','hazard','disposal','quantity'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.value = '';
+    });
+    const datalist = document.getElementById('chemical-suggestions');
+    if(datalist) datalist.innerHTML = '';
+}
+
+function showPage(pageId) {
+    document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+    const pageEl = document.getElementById(pageId);
+    if(pageEl) pageEl.style.display = 'block';
+}
+
+function navigateTo(route, param = '') {
+    const path = param ? `#/` + route + `/` + encodeURIComponent(param) : `#/` + route;
+    location.hash = path;
+}
+
+async function saveChemical() {
+    const idValue = document.getElementById('edit-id').value;
+    const name = document.getElementById('name').value.trim();
+    const formula = document.getElementById('formula').value.trim();
+    const cas = document.getElementById('cas').value.trim();
+    const locationValue = document.getElementById('location').value.trim();
+    const storage = document.getElementById('storage').value.trim();
+    const expiry = document.getElementById('expiry').value;
+    const hazard = document.getElementById('hazard').value.trim();
+    const disposal = document.getElementById('disposal').value.trim();
+    const quantityRaw = document.getElementById('quantity').value;
+    const quantity = quantityRaw !== '' ? parseFloat(quantityRaw) : NaN;
+
+    if(!name || !formula || !locationValue || Number.isNaN(quantity)) {
+        alert('필수 항목을 채워주세요: Name, Formula, Location, Quantity');
+        return;
+    }
+
+    const payload = {
+        name,
+        formula,
+        cas: cas || null,
+        location: locationValue,
+        storage: storage || null,
+        expiry: expiry || null,
+        hazard: hazard || null,
+        ghs: parseGhsInput(hazard),
+        disposal: disposal || null,
+        quantity,
+    };
+
+    const existing = idValue ? chemicals.find(c => c.id === Number(idValue)) : null;
+
+    try {
+        let saved;
+        if(existing) {
+            saved = await apiRequest(`/reagents/${encodeURIComponent(existing.slug)}`, {
+                method: 'PUT',
+                body: payload,
+            });
+        } else {
+            saved = await apiRequest('/reagents', {
+                method: 'POST',
+                body: payload,
+            });
+        }
+        replaceReagentInState(saved);
+        renderList();
+        resetForm();
+        alert('저장이 완료되었습니다.');
+    } catch (err) {
+        handleApiError(err, '시약을 저장하지 못했습니다.');
+    }
+}
+
+function renderList() {
+    const list = document.getElementById('chemical-list');
+    const discardList = document.getElementById('discard-list');
+    const usageList = document.getElementById('usage-list');
+    if(list) list.innerHTML = '';
+    if(discardList) discardList.innerHTML = '';
+    if(usageList) usageList.innerHTML = '';
+
+    const q = (document.getElementById('search')?.value || '').toLowerCase();
+    const ghsFilter = document.getElementById('filterGHS')?.value || '';
+    const sortBy = document.getElementById('sortBy')?.value || 'id';
+
+    let filtered = chemicals.filter(c => {
+        if(q) {
+            const text = `${c.name || ''} ${c.formula || ''} ${c.cas || ''}`.toLowerCase();
+            if(!text.includes(q)) return false;
+        }
+        if(ghsFilter) {
+            if(!Array.isArray(c.ghs) || !c.ghs.includes(ghsFilter)) return false;
+        }
+        return true;
+    });
+
+    if(sortBy === 'name') {
+        filtered.sort((a,b) => (a.name || '').localeCompare(b.name || ''));
+    } else if(sortBy === 'quantity') {
+        filtered.sort((a,b) => (b.quantity || 0) - (a.quantity || 0));
+    } else {
+        filtered.sort((a,b) => (a.id || 0) - (b.id || 0));
+    }
+
+    filtered.forEach(c => {
+        const li = document.createElement('li');
+
+        const nameLink = document.createElement('a');
+        nameLink.href = `#/reagents/${encodeURIComponent(c.slug)}`;
+        nameLink.textContent = c.name;
+        nameLink.style.fontWeight = '700';
+        nameLink.style.color = '#00bfff';
+        li.appendChild(nameLink);
+
+        const info = document.createElement('div');
+        info.innerHTML = `<div style="margin-top:6px;">
+            (${escapeHtml(c.formula || '')}) &nbsp; CAS: ${escapeHtml(c.cas || 'N/A')} &nbsp; | &nbsp; 위치: ${escapeHtml(c.location || 'N/A')}
+            <br>보관: ${escapeHtml(c.storage || '-')} &nbsp; | &nbsp; 유통기한: ${escapeHtml(c.expiry || '-')} &nbsp; | &nbsp; 폐기: ${escapeHtml(c.disposal || '-')}
+            <br>Qty: <strong>${c.quantity ?? 0}</strong> &nbsp; | &nbsp; GHS:
+            </div>`;
+        li.appendChild(info);
+
+        (Array.isArray(c.ghs) ? c.ghs : []).forEach(tag => {
+            const span = document.createElement('span');
+            span.textContent = tag;
+            span.style.fontWeight = '700';
+            span.style.marginLeft = '8px';
+            if(tag === 'Flammable') span.style.color = 'red';
+            else if(tag === 'Corrosive') span.style.color = 'orange';
+            else if(tag === 'Toxic') span.style.color = 'purple';
+            else if(tag === 'Oxidizer') span.style.color = 'limegreen';
+            li.appendChild(span);
+        });
+
+        const btnContainer = document.createElement('div');
+        btnContainer.style.marginTop = '8px';
+
+        const actions = [
+            {
+                cls: 'edit',
+                text: 'Edit',
+                onClick: () => {
+                    document.getElementById('edit-id').value = c.id;
+                    document.getElementById('name').value = c.name || '';
+                    document.getElementById('formula').value = c.formula || '';
+                    document.getElementById('cas').value = c.cas || '';
+                    document.getElementById('location').value = c.location || '';
+                    document.getElementById('storage').value = c.storage || '';
+                    document.getElementById('expiry').value = c.expiry ? c.expiry.slice(0, 10) : '';
+                    document.getElementById('hazard').value = Array.isArray(c.ghs) && c.ghs.length ? c.ghs.join(', ') : (c.hazard || '');
+                    document.getElementById('disposal').value = c.disposal || '';
+                    document.getElementById('quantity').value = c.quantity ?? '';
+                    navigateTo('add');
+                },
+            },
+            {
+                cls: 'delete',
+                text: 'Delete',
+                onClick: () => deleteReagent(c),
+            },
+            {
+                cls: 'use',
+                text: 'Use -10',
+                onClick: () => applyUsage(c, 'use', 10),
+            },
+            {
+                cls: 'discard',
+                text: 'Discard -10',
+                onClick: () => applyUsage(c, 'discard', 10),
+            },
+            {
+                cls: 'scale',
+                text: 'Use with Scale',
+                onClick: () => useWithScale(c),
+            },
+        ];
+
+        actions.forEach(action => {
+            const btn = document.createElement('button');
+            btn.className = `action-btn ${action.cls}`;
+            btn.textContent = action.text;
+            btn.onclick = action.onClick;
+            btnContainer.appendChild(btn);
+        });
+
+        li.appendChild(btnContainer);
+        if(list) list.appendChild(li);
+
+        if(discardList) {
+            const liD = document.createElement('li');
+            liD.textContent = `${c.name} - Discarded: ${c.discarded || 0}`;
+            discardList.appendChild(liD);
+        }
+
+        if(usageList) {
+            const liU = document.createElement('li');
+            liU.textContent = `${c.name} - Used: ${c.used || 0}`;
+            usageList.appendChild(liU);
+        }
+    });
+}
+
+async function deleteReagent(reagent) {
+    if(!confirm(`${reagent.name}을(를) 삭제하시겠습니까?`)) return;
+    try {
+        await apiRequest(`/reagents/${encodeURIComponent(reagent.slug)}`, { method: 'DELETE' });
+        removeReagentFromState(reagent.id);
+        renderList();
+    } catch (err) {
+        handleApiError(err, '삭제에 실패했습니다.');
+    }
+}
+
+async function applyUsage(reagent, endpoint, amount, note = '') {
+    try {
+        const updated = await apiRequest(`/reagents/${encodeURIComponent(reagent.slug)}/${endpoint}`, {
+            method: 'POST',
+            body: { amount, note },
+        });
+        replaceReagentInState(updated);
+        renderList();
+    } catch (err) {
+        const actionLabel = endpoint === 'use' ? '사용' : '폐기';
+        handleApiError(err, `${actionLabel} 처리에 실패했습니다.`);
+    }
+}
+
+async function useWithScale(reagent) {
+    const before = Number(reagent.quantity || 0);
+    const afterStr = prompt(`${reagent.name}의 저울로 잰 남은 무게를 입력하세요 (현재: ${before})`);
+    if(afterStr === null) return;
+    const after = parseFloat(afterStr);
+    if(Number.isNaN(after) || after < 0) {
+        alert('올바른 값을 입력해주세요 (0 이상의 숫자).');
+        return;
+    }
+    if(after > before) {
+        if(!confirm('입력한 값이 현재 수량보다 큽니다. 계속하시겠습니까?')) return;
+    }
+    try {
+        const updated = await apiRequest(`/reagents/${encodeURIComponent(reagent.slug)}/measurement`, {
+            method: 'POST',
+            body: { new_quantity: after, source: 'scale' },
+        });
+        replaceReagentInState(updated);
+        renderList();
+    } catch (err) {
+        handleApiError(err, '측정값을 반영하지 못했습니다.');
+    }
+}
+
+async function triggerManualMeasurement(id) {
+    const reagent = chemicals.find(c => c.id === id);
+    if(!reagent) return;
+    await useWithScale(reagent);
+}
+
+async function resetUsageStats() {
+    if(!confirm('모든 사용/폐기 통계를 초기화하시겠습니까?')) return;
+    try {
+        await apiRequest('/reagents/reset-stats', { method: 'POST' });
+        await refreshReagents();
+        renderList();
+    } catch (err) {
+        handleApiError(err, '통계를 초기화하지 못했습니다.');
+    }
+}
+
+function exportCSV() {
+    if(!chemicals.length) {
+        alert('내보낼 데이터가 없습니다.');
+        return;
+    }
+    const rows = [['id','name','formula','cas','location','storage','expiry','quantity','ghs','used','discarded','disposal']];
+    chemicals.forEach(c => {
+        rows.push([
+            c.id,
+            c.name || '',
+            c.formula || '',
+            c.cas || '',
+            c.location || '',
+            c.storage || '',
+            c.expiry || '',
+            c.quantity ?? 0,
+            Array.isArray(c.ghs) ? c.ghs.join(';') : '',
+            c.used ?? 0,
+            c.discarded ?? 0,
+            c.disposal || '',
+        ]);
+    });
+    const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reagentology_export_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+}
+
+function autoDiscardReport() {
+    if(!chemicals.length) {
+        alert('내보낼 데이터가 없습니다.');
+        return;
+    }
+    const rows = [['name','discarded']];
+    chemicals.forEach(c => rows.push([c.name || '', c.discarded || 0]));
+    const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `discard_report_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+}
+
+async function renderUsageLogList(slug) {
+    const box = document.getElementById('usage-log');
+    if(!box) return;
+    box.innerHTML = '<li>불러오는 중...</li>';
+    try {
+        const logs = await apiRequest(`/reagents/${encodeURIComponent(slug)}/usage`);
+        if(!logs || !logs.length) {
+            box.innerHTML = '<li>기록 없음</li>';
+            return;
+        }
+        box.innerHTML = logs.map(log => {
+            const when = new Date(log.created_at).toLocaleString();
+            const sign = log.delta > 0 ? '+' : '';
+            return `<li>
+                <span>${escapeHtml(when)}</span>
+                &nbsp; <strong>${sign}${log.delta}</strong> → ${log.new_qty}
+                &nbsp; <em style="opacity:.7">${escapeHtml(log.source || '')}</em>
+                ${log.note ? `&nbsp; <span>${escapeHtml(log.note)}</span>` : ''}
+            </li>`;
+        }).join('');
+    } catch (err) {
+        box.innerHTML = '<li>기록을 불러오지 못했습니다.</li>';
+        console.error(err);
+    }
+}
+
+function showChemicalDetail(id) {
+    const chem = chemicals.find(c => c.id == id);
+    if(!chem) {
+        alert('시약을 찾을 수 없습니다.');
+        return;
+    }
+    const detailDiv = document.getElementById('chemical-detail');
+    if(detailDiv) {
+        detailDiv.innerHTML = `
+            <h2 style="margin-bottom:6px">${escapeHtml(chem.name)}</h2>
+            <div class="meta" style="opacity:.8;margin-bottom:10px">
+              ID: ${chem.id} &nbsp;|&nbsp; slug: ${escapeHtml(chem.slug)}
+            </div>
+
+            <div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:start">
+              <div>
+                <p><strong>Quantity</strong>: <span id="chem-qty">${chem.quantity ?? 0}</span></p>
+                <p><strong>CAS</strong>: ${escapeHtml(chem.cas || '-')}</p>
+                <p><strong>Formula</strong>: ${escapeHtml(chem.formula || '-')}</p>
+                <p><strong>Location</strong>: ${escapeHtml(chem.location || '-')}</p>
+                <p><strong>Storage</strong>: ${escapeHtml(chem.storage || '-')}</p>
+                <p><strong>Expiry</strong>: ${escapeHtml(chem.expiry || '-')}</p>
+              </div>
+              <div>
+                <p><strong>Hazard</strong>: ${escapeHtml(chem.hazard || '-')}</p>
+                <p><strong>Disposal</strong>: ${escapeHtml(chem.disposal || '-')}</p>
+                <p><strong>Used</strong>: ${chem.used ?? 0}</p>
+                <p><strong>Discarded</strong>: ${chem.discarded ?? 0}</p>
+                <p><strong>GHS</strong>: ${
+                    Array.isArray(chem.ghs) && chem.ghs.length
+                        ? chem.ghs.map(g => `<span class="tag">${escapeHtml(g)}</span>`).join(' ')
+                        : '-'
+                }</p>
+              </div>
+            </div>
+
+            <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
+                            <button class="small" onclick="triggerManualMeasurement(${chem.id})">수동 변경</button>
+                            <button class="small" onclick="navigateTo('inventory')">목록으로</button>
+              <button class="small" onclick="copyReagentLink('${encodeURIComponent(chem.slug)}')">링크 복사</button>
+            </div>
+
+            <h3 style="margin-top:16px">사용 기록</h3>
+            <ul id="usage-log" style="margin:0;padding-left:18px"></ul>
+        `;
+        renderUsageLogList(chem.slug);
+    }
+    showPage('detail-page');
+}
+
+async function copyReagentLink(slugOrEncoded) {
+    const slug = decodeURIComponent(slugOrEncoded);
+    const url = `${location.origin}${location.pathname}#/reagents/${encodeURIComponent(slug)}`;
+    try {
+        await navigator.clipboard.writeText(url);
+        alert('링크가 복사되었습니다!');
+    } catch (err) {
+        console.warn('Clipboard write failed', err);
+        prompt('복사 실패. 아래 링크를 수동 복사하세요:', url);
+    }
+}
+
+function parseHash() {
+    const h = (location.hash || '').replace(/^#\/?/, '');
+    const [route, param] = h.split('/');
+    return { route: route || '', param: param || '' };
+}
+
+function handleHashRoute() {
+    const { route, param } = parseHash();
+    const loggedUser = localStorage.getItem(LOGGED_KEY);
+    if(!loggedUser) {
+        showPage('login-page');
+        return;
+    }
+    // 정적 섹션 라우팅
+    const pages = new Set(['about','add','discard','inventory','usage','auto-db']);
+    if(pages.has(route)) {
+        showPage(route);
+        if(route === 'inventory') renderList();
+        if(route === 'auto-db') renderLocalDb();
+        return;
+    }
+    if(route === 'reagents' && param) {
+        let chem = chemicals.find(c => c.slug === decodeURIComponent(param));
+        if(!chem) {
+            const idNum = Number(param);
+            if(!Number.isNaN(idNum)) chem = chemicals.find(c => c.id === idNum);
+        }
+        if(chem) {
+            showChemicalDetail(chem.id);
+            return;
+        }
+    }
+    showPage('about');
+}
+
+window.addEventListener('hashchange', () => {
+    if(suppressHashRoute) return;
+    handleHashRoute();
+});
+
+document.querySelectorAll('nav button').forEach(btn => btn.addEventListener('click', () => {
+    setTimeout(renderList, 120);
+}));
+
+function signup() {
+    const username = prompt('사용할 Username 입력:');
+    const password = prompt('사용할 Password 입력:');
+    if(!username || !password) return alert('아이디와 비밀번호를 입력해주세요.');
+    let users = [];
+    try {
+        users = JSON.parse(localStorage.getItem(USER_KEY) || '[]');
+    } catch (err) {
+        console.warn('LocalStorage unavailable', err);
+    }
+    if(users.some(u => u.username === username)) return alert('이미 존재하는 아이디입니다.');
+    users.push({ username, password });
+    localStorage.setItem(USER_KEY, JSON.stringify(users));
+    alert('회원가입 완료! 로그인해주세요.');
+}
+
+async function login() {
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    if(!username || !password) return alert('아이디와 비밀번호를 입력해주세요.');
+    let users = [];
+    try {
+        users = JSON.parse(localStorage.getItem(USER_KEY) || '[]');
+    } catch (err) {
+        console.warn('LocalStorage unavailable', err);
+    }
+    const user = users.find(u => u.username === username && u.password === password);
+    if(user) {
+        localStorage.setItem(LOGGED_KEY, username);
+        document.getElementById('login-page').style.display='none';
+        document.getElementById('main-page').style.display='block';
+        document.getElementById('whoami').textContent = username;
+        document.getElementById('logoutBtn').style.display = 'inline-block';
+        await initApp();
+    } else {
+        alert('아이디 또는 비밀번호가 틀립니다.');
+    }
+}
+
+function logout() {
+    localStorage.removeItem(LOGGED_KEY);
+    document.getElementById('login-page').style.display='block';
+    document.getElementById('main-page').style.display='none';
+    document.getElementById('whoami').textContent = '';
+    document.getElementById('logoutBtn').style.display = 'none';
+    chemicals = [];
+    renderList();
+}
+
+async function initApp() {
+    await refreshReagents();
+    await seedDefaultDataIfNeeded();
+    renderList();
+    bindAutocomplete();
+    handleHashRoute();
+}
+
+window.onload = async function() {
+    const loggedUser = localStorage.getItem(LOGGED_KEY);
+    if(loggedUser) {
+        document.getElementById('login-page').style.display='none';
+        document.getElementById('main-page').style.display='block';
+        document.getElementById('whoami').textContent = loggedUser;
+        document.getElementById('logoutBtn').style.display = 'inline-block';
+        await initApp();
+    }
+};
+
+async function renderLocalDb() {
+    const ul = document.getElementById('auto-db-list');
+    if(!ul) return;
+    ul.innerHTML = '로딩 중...';
+    try {
+        const res = await fetch(`${API_BASE}/autocomplete/local-db`);
+        if(!res.ok) throw new Error('failed to load');
+        const items = await res.json();
+        if(!Array.isArray(items) || !items.length) {
+            ul.innerHTML = '<li>항목 없음</li>';
+            return;
+        }
+        ul.innerHTML = '';
+        items.forEach(item => {
+            const li = document.createElement('li');
+            li.textContent = `${item.name}  (${item.formula})  ${Array.isArray(item.synonyms)&&item.synonyms.length? '— ' + item.synonyms.join('; ') : ''}`;
+            const del = document.createElement('button');
+            del.textContent = '삭제';
+            del.className = 'action-btn delete';
+            del.style.marginLeft = '8px';
+            del.onclick = async () => {
+                if(!confirm(`${item.name}을(를) 삭제하시겠습니까?`)) return;
+                const resp = await fetch(`${API_BASE}/autocomplete/local-db/${encodeURIComponent(item.name)}`, { method: 'DELETE' });
+                if(!resp.ok) { alert('삭제 실패'); return; }
+                renderLocalDb();
+            };
+            li.appendChild(del);
+            ul.appendChild(li);
+        });
+    } catch (err) {
+        ul.innerHTML = '<li>로딩 실패</li>';
+        console.error(err);
+    }
+}
+
+async function addLocalAutoItem() {
+    const name = document.getElementById('auto-name').value.trim();
+    const formula = document.getElementById('auto-formula').value.trim();
+    const synRaw = document.getElementById('auto-synonyms').value.trim();
+    if(!name || !formula) { alert('Name과 Formula는 필수입니다.'); return; }
+    const synonyms = synRaw ? synRaw.split(';').map(s=>s.trim()).filter(Boolean) : [];
+    const res = await fetch(`${API_BASE}/autocomplete/local-db`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, formula, synonyms })
+    });
+    if(res.status === 409) { alert('이미 존재하는 이름입니다.'); return; }
+    if(!res.ok) { alert('추가 실패'); return; }
+    document.getElementById('auto-name').value = '';
+    document.getElementById('auto-formula').value = '';
+    document.getElementById('auto-synonyms').value = '';
+    renderLocalDb();
+}
+</script>
+</body>
+</html>
