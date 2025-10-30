@@ -1,4 +1,4 @@
-# Reagent-ology (로컬 FastAPI + 정적 프런트)
+Reagent-ology
 
 실험실 시약 관리 데모 애플리케이션입니다. 로컬 FastAPI 백엔드와 정적 HTML 프런트로 동작하며, 이름 자동완성은 로컬 CSV DB를 우선 사용하고 필요 시 PubChem 제안으로 보강합니다.
 
@@ -9,7 +9,7 @@
 ## 설치
 ```zsh
 # 1) 프로젝트 루트로 이동
-cd /Users/ppofluxus/Documents/Regentology/reagent-ology
+cd /Users/USERNAME/Documents/Regentology/reagent-ology
 
 # 2) (선택) 가상환경 생성 및 활성화
 python3 -m venv .venv
