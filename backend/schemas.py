@@ -31,6 +31,10 @@ class ReagentBase(BaseModel):
     hazard: Optional[str] = Field(default=None, max_length=255)
     ghs: List[str] = Field(default_factory=list)
     disposal: Optional[str] = Field(default=None, max_length=255)
+    density: Optional[float] = Field(default=None, gt=0)
+    volume_ml: Optional[float] = Field(default=None, ge=0)
+    nfc_tag_uid: Optional[str] = Field(default=None, max_length=128)
+    scale_device: Optional[str] = Field(default=None, max_length=128)
     quantity: float = 0.0
     used: float = 0.0
     discarded: float = 0.0
@@ -50,6 +54,10 @@ class ReagentUpdate(BaseModel):
     hazard: Optional[str] = None
     ghs: Optional[List[str]] = None
     disposal: Optional[str] = None
+    density: Optional[float] = Field(default=None, gt=0)
+    volume_ml: Optional[float] = Field(default=None, ge=0)
+    nfc_tag_uid: Optional[str] = Field(default=None, max_length=128)
+    scale_device: Optional[str] = Field(default=None, max_length=128)
     quantity: Optional[float] = None
     used: Optional[float] = None
     discarded: Optional[float] = None
@@ -69,7 +77,16 @@ class UseRequest(BaseModel):
 
 
 class MeasurementRequest(BaseModel):
-    new_quantity: float = Field(..., ge=0)
+    new_quantity: Optional[float] = Field(default=None, ge=0)
+    measured_mass: Optional[float] = Field(default=None, ge=0)
+    measured_volume: Optional[float] = Field(default=None, ge=0)
+    source: str = Field(default="scale", max_length=64)
+    note: Optional[str] = Field(default=None, max_length=255)
+
+
+class WeightMeasurementRequest(BaseModel):
+    nfc_tag_uid: str = Field(..., max_length=128)
+    measured_mass: float = Field(..., ge=0)
     source: str = Field(default="scale", max_length=64)
     note: Optional[str] = Field(default=None, max_length=255)
 
@@ -78,6 +95,11 @@ class AutocompleteItem(BaseModel):
     name: str
     formula: Optional[str]
     cid: Optional[int]
+    cas: Optional[str] = None
+    storage: Optional[str] = None
+    ghs: Optional[List[str]] = None
+    disposal: Optional[str] = None
+    density: Optional[float] = None
 
 
 class AutocompleteResponse(BaseModel):
@@ -89,6 +111,11 @@ class LocalChemBase(BaseModel):
     name: str = Field(..., max_length=255)
     formula: str = Field(..., max_length=255)
     synonyms: List[str] = Field(default_factory=list)
+    cas: Optional[str] = Field(default=None, max_length=64)
+    storage: Optional[str] = Field(default=None, max_length=255)
+    ghs: List[str] = Field(default_factory=list)
+    disposal: Optional[str] = Field(default=None, max_length=255)
+    density: Optional[float] = Field(default=None, gt=0)
 
 
 class LocalChemCreate(LocalChemBase):

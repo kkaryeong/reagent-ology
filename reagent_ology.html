@@ -168,16 +168,20 @@
                 <datalist id="chemical-suggestions"></datalist>
                 <input type="text" id="formula" placeholder="Formula">
                 <input type="text" id="cas" placeholder="CAS 번호">
-                <input type="text" id="location" placeholder="Location">
+                <input type="text" id="location" placeholder="Location" list="location-suggestions" autocomplete="off">
+                <datalist id="location-suggestions"></datalist>
                 <input type="text" id="storage" placeholder="보관 조건">
                 <input type="date" id="expiry" placeholder="유통기한">
                 <input type="text" id="hazard" placeholder="GHS 분류 (콤마로 구분)">
                 <input type="text" id="disposal" placeholder="폐기 방법">
                 <input type="number" step="0.01" id="quantity" placeholder="Quantity (ml/g)">
+                <input type="number" step="0.0001" id="density" placeholder="Density (g/mL)">
+                <input type="text" id="nfcTag" placeholder="NFC Tag UID">
+                <input type="text" id="scaleDevice" placeholder="Scale Device / Port">
                 <button onclick="saveChemical()" class="action-btn small">Save</button>
                 <button onclick="resetForm()" class="small">Clear</button>
             </div>
-            <div id="form-note" class="meta">필수: Name, Formula, Location, Quantity</div>
+            <div id="form-note" class="meta">필수: Name, Formula, Location, Quantity(기본 g). 밀도(g/mL)를 입력하면 무게 측정 시 mL 환산이 가능합니다.</div>
         </div>
 
         <div id="discard" class="page">
@@ -242,16 +246,78 @@ const LOGGED_KEY = 'reagentology_loggedin';
 const SEED_KEY = 'reagentology_seeded';
 
 const DEFAULT_CHEMS = [
-    { name: 'Acetone', formula: 'C3H6O', cas: '67-64-1', ghs: ['Flammable'], location: 'Shelf A', storage: 'RT', quantity: 500, disposal: '화학폐기물' },
-    { name: 'Ethanol', formula: 'C2H6O', cas: '64-17-5', ghs: ['Flammable'], location: 'Shelf B', storage: 'RT', quantity: 1000, disposal: '화학폐기물' },
-    { name: 'Methanol', formula: 'CH3OH', cas: '67-56-1', ghs: ['Flammable', 'Toxic'], location: 'Shelf A', storage: 'RT', quantity: 300, disposal: '화학폐기물' },
-    { name: 'Sodium Chloride', formula: 'NaCl', cas: '7647-14-5', ghs: [], location: 'Shelf C', storage: 'RT', quantity: 1000, disposal: '일반폐기물' },
+    {
+        name: 'Acetone',
+        formula: 'C3H6O',
+        cas: '67-64-1',
+        ghs: ['Flammable'],
+        location: 'Shelf A',
+        storage: 'RT',
+        quantity: 500,
+        density: 0.7845,
+        nfc_tag_uid: 'NFC-ACE-001',
+        scale_device: 'RS232-1',
+        disposal: '화학폐기물',
+    },
+    {
+        name: 'Ethanol',
+        formula: 'C2H6O',
+        cas: '64-17-5',
+        ghs: ['Flammable'],
+        location: 'Shelf B',
+        storage: 'RT',
+        quantity: 1000,
+        density: 0.789,
+        nfc_tag_uid: 'NFC-ETH-001',
+        scale_device: 'RS232-1',
+        disposal: '화학폐기물',
+    },
+    {
+        name: 'Methanol',
+        formula: 'CH3OH',
+        cas: '67-56-1',
+        ghs: ['Flammable', 'Toxic'],
+        location: 'Shelf A',
+        storage: 'RT',
+        quantity: 300,
+        density: 0.792,
+        nfc_tag_uid: 'NFC-MEOH-001',
+        scale_device: 'RS232-2',
+        disposal: '화학폐기물',
+    },
+    {
+        name: 'Sodium Chloride',
+        formula: 'NaCl',
+        cas: '7647-14-5',
+        ghs: [],
+        location: 'Shelf C',
+        storage: 'RT',
+        quantity: 1000,
+        density: 2.165,
+        nfc_tag_uid: 'NFC-NACL-001',
+        scale_device: 'RS232-3',
+        disposal: '일반폐기물',
+    },
 ];
 
 let chemicals = [];
 let suppressHashRoute = false;
 let autocompleteTimer = null;
 let autocompleteAbort = null;
+
+function formatNumberDisplay(value, fractionDigits = 2) {
+    if (value === undefined || value === null || Number.isNaN(Number(value))) {
+        return '-';
+    }
+    return Number(value).toLocaleString(undefined, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: fractionDigits,
+    });
+}
+
+function hasDensity(reagent) {
+    return !!reagent && typeof reagent.density === 'number' && !Number.isNaN(reagent.density);
+}
 
 function parseGhsInput(value) {
     if(!value) return [];
@@ -335,6 +401,13 @@ async function seedDefaultDataIfNeeded() {
     }
     if(chemicals.length) return;
     for(const sample of DEFAULT_CHEMS) {
+        const density = typeof sample.density === 'number' && !Number.isNaN(sample.density)
+            ? sample.density
+            : null;
+        let volume_ml = null;
+        if(typeof sample.quantity === 'number' && density) {
+            volume_ml = sample.quantity / density;
+        }
         const payload = {
             name: sample.name,
             formula: sample.formula,
@@ -345,6 +418,10 @@ async function seedDefaultDataIfNeeded() {
             hazard: sample.ghs.length ? sample.ghs.join(', ') : null,
             ghs: sample.ghs.slice(),
             disposal: sample.disposal || null,
+            density,
+            volume_ml,
+            nfc_tag_uid: sample.nfc_tag_uid || null,
+            scale_device: sample.scale_device || null,
             quantity: sample.quantity,
         };
         try {
@@ -383,20 +460,111 @@ function bindAutocomplete() {
             const suggestions = await fetchAutocomplete(value);
             datalist.innerHTML = suggestions.map(item => {
                 const label = item.formula ? `${item.name} (${item.formula})` : item.name;
-                const safeFormula = (item.formula || '').replace(/"/g, '&quot;');
-                return `<option value="${escapeHtml(item.name)}" data-formula="${safeFormula}">${label}</option>`;
+                const attrParts = [];
+                const safeFormula = escapeHtml(item.formula || '');
+                attrParts.push(`data-formula="${safeFormula}"`);
+                if(item.cas) attrParts.push(`data-cas="${escapeHtml(item.cas)}"`);
+                if(item.storage) attrParts.push(`data-storage="${escapeHtml(item.storage)}"`);
+                const ghsString = Array.isArray(item.ghs) ? item.ghs.join(', ') : (item.ghs || '');
+                if(ghsString) attrParts.push(`data-ghs="${escapeHtml(ghsString)}"`);
+                if(item.disposal) attrParts.push(`data-disposal="${escapeHtml(item.disposal)}"`);
+                if(item.density !== undefined && item.density !== null && !Number.isNaN(Number(item.density))) {
+                    attrParts.push(`data-density="${escapeHtml(String(item.density))}"`);
+                }
+                const attrString = attrParts.length ? ` ${attrParts.join(' ')}` : '';
+                return `<option value="${escapeHtml(item.name)}"${attrString}>${label}</option>`;
             }).join('');
         }, 250);
     });
 
-    nameInput.addEventListener('change', () => {
+    // input 이벤트로 변경하여 자동완성 선택 시 즉시 반영
+    nameInput.addEventListener('input', () => {
         const currentValue = nameInput.value.trim();
-        Array.from(datalist.options).forEach(option => {
-            if(option.value === currentValue && option.dataset.formula && formulaInput && !formulaInput.value.trim()) {
-                formulaInput.value = option.dataset.formula;
-            }
-        });
+        // datalist에서 정확히 일치하는 항목 찾기
+        const matchedOption = Array.from(datalist.options).find(opt => opt.value === currentValue);
+        if(!matchedOption) return;
+        
+        // 폼 필드 자동 채우기
+        if(matchedOption.dataset.formula && formulaInput) {
+            formulaInput.value = matchedOption.dataset.formula;
+        }
+        const casInput = document.getElementById('cas');
+        if(matchedOption.dataset.cas && casInput) {
+            casInput.value = matchedOption.dataset.cas;
+        }
+        const storageInput = document.getElementById('storage');
+        if(matchedOption.dataset.storage && storageInput) {
+            storageInput.value = matchedOption.dataset.storage;
+        }
+        const hazardInput = document.getElementById('hazard');
+        if(matchedOption.dataset.ghs && hazardInput) {
+            hazardInput.value = matchedOption.dataset.ghs;
+        }
+        const disposalInput = document.getElementById('disposal');
+        if(matchedOption.dataset.disposal && disposalInput) {
+            disposalInput.value = matchedOption.dataset.disposal;
+        }
+        const densityInput = document.getElementById('density');
+        if(matchedOption.dataset.density && densityInput) {
+            densityInput.value = matchedOption.dataset.density;
+        }
     });
+}
+
+let locationAutocompleteTimer = null;
+let locationAutocompleteAbort = null;
+
+function bindLocationAutocomplete() {
+    const locationInput = document.getElementById('location');
+    const datalist = document.getElementById('location-suggestions');
+    if(!locationInput || !datalist) return;
+    if(locationInput.dataset.autocompleteBound) return;
+    locationInput.dataset.autocompleteBound = '1';
+
+    locationInput.addEventListener('input', (event) => {
+        const value = event.target.value.trim();
+        if(locationAutocompleteTimer) {
+            clearTimeout(locationAutocompleteTimer);
+            locationAutocompleteTimer = null;
+        }
+        if(value.length < 1) {
+            datalist.innerHTML = '';
+            return;
+        }
+        locationAutocompleteTimer = setTimeout(async () => {
+            const locations = await fetchLocationSuggestions(value);
+            datalist.innerHTML = locations.map(loc => {
+                return `<option value="${escapeHtml(loc)}"></option>`;
+            }).join('');
+        }, 200);
+    });
+}
+
+async function fetchLocationSuggestions(query) {
+    if(!query) return [];
+    if(locationAutocompleteAbort) {
+        locationAutocompleteAbort.abort();
+    }
+    locationAutocompleteAbort = new AbortController();
+    
+    try {
+        const url = `${API_BASE}/locations?q=${encodeURIComponent(query)}`;
+        console.log('Fetching locations from:', url);
+        const res = await fetch(url, { 
+            signal: locationAutocompleteAbort.signal 
+        });
+        if(!res.ok) {
+            console.error('Location API returned status:', res.status);
+            return [];
+        }
+        const locations = await res.json();
+        console.log('Location suggestions received:', locations);
+        return Array.isArray(locations) ? locations : [];
+    } catch (err) {
+        if(err.name === 'AbortError') return [];
+        console.error('Location autocomplete error:', err);
+        return [];
+    }
 }
 
 async function fetchAutocomplete(query) {
@@ -442,7 +610,7 @@ async function fetchAutocomplete(query) {
 }
 
 function resetForm() {
-    ['edit-id','name','formula','cas','location','storage','expiry','hazard','disposal','quantity'].forEach(id => {
+    ['edit-id','name','formula','cas','location','storage','expiry','hazard','disposal','quantity','density','nfcTag','scaleDevice'].forEach(id => {
         const el = document.getElementById(id);
         if(el) el.value = '';
     });
@@ -473,6 +641,19 @@ async function saveChemical() {
     const disposal = document.getElementById('disposal').value.trim();
     const quantityRaw = document.getElementById('quantity').value;
     const quantity = quantityRaw !== '' ? parseFloat(quantityRaw) : NaN;
+    const densityRaw = document.getElementById('density').value;
+    const nfcTag = document.getElementById('nfcTag').value.trim();
+    const scaleDevice = document.getElementById('scaleDevice').value.trim();
+
+    let density = null;
+    if(densityRaw !== '') {
+        const parsedDensity = parseFloat(densityRaw);
+        if(Number.isNaN(parsedDensity) || parsedDensity <= 0) {
+            alert('밀도는 0보다 큰 숫자여야 합니다.');
+            return;
+        }
+        density = parsedDensity;
+    }
 
     if(!name || !formula || !locationValue || Number.isNaN(quantity)) {
         alert('필수 항목을 채워주세요: Name, Formula, Location, Quantity');
@@ -489,6 +670,10 @@ async function saveChemical() {
         hazard: hazard || null,
         ghs: parseGhsInput(hazard),
         disposal: disposal || null,
+        density,
+        volume_ml: density ? quantity / density : null,
+        nfc_tag_uid: nfcTag || null,
+        scale_device: scaleDevice || null,
         quantity,
     };
 
@@ -558,11 +743,33 @@ function renderList() {
         li.appendChild(nameLink);
 
         const info = document.createElement('div');
-        info.innerHTML = `<div style="margin-top:6px;">
+        const qtyDisplay = escapeHtml(formatNumberDisplay(c.quantity));
+        const volumeDisplay = c.volume_ml !== null && c.volume_ml !== undefined
+            ? escapeHtml(formatNumberDisplay(c.volume_ml))
+            : null;
+        const densityDisplay = c.density !== null && c.density !== undefined
+            ? escapeHtml(formatNumberDisplay(c.density, 4))
+            : null;
+        const nfcDisplay = escapeHtml(c.nfc_tag_uid || '-');
+        const scaleDisplay = c.scale_device ? escapeHtml(c.scale_device) : null;
+
+        let metaHtml = `<div style="margin-top:6px;">
             (${escapeHtml(c.formula || '')}) &nbsp; CAS: ${escapeHtml(c.cas || 'N/A')} &nbsp; | &nbsp; 위치: ${escapeHtml(c.location || 'N/A')}
             <br>보관: ${escapeHtml(c.storage || '-')} &nbsp; | &nbsp; 유통기한: ${escapeHtml(c.expiry || '-')} &nbsp; | &nbsp; 폐기: ${escapeHtml(c.disposal || '-')}
-            <br>Qty: <strong>${c.quantity ?? 0}</strong> &nbsp; | &nbsp; GHS:
+            <br>Qty: <strong>${qtyDisplay}</strong> g`;
+        if(volumeDisplay && volumeDisplay !== '-') {
+            metaHtml += ` &nbsp; | &nbsp; Volume: ${volumeDisplay} mL`;
+        }
+        if(densityDisplay && densityDisplay !== '-') {
+            metaHtml += ` &nbsp; | &nbsp; Density: ${densityDisplay} g/mL`;
+        }
+        metaHtml += `<br>NFC: ${nfcDisplay}`;
+        if(scaleDisplay) {
+            metaHtml += ` &nbsp; | &nbsp; Scale: ${scaleDisplay}`;
+        }
+        metaHtml += `<br>GHS:
             </div>`;
+        info.innerHTML = metaHtml;
         li.appendChild(info);
 
         (Array.isArray(c.ghs) ? c.ghs : []).forEach(tag => {
@@ -595,6 +802,9 @@ function renderList() {
                     document.getElementById('hazard').value = Array.isArray(c.ghs) && c.ghs.length ? c.ghs.join(', ') : (c.hazard || '');
                     document.getElementById('disposal').value = c.disposal || '';
                     document.getElementById('quantity').value = c.quantity ?? '';
+                    document.getElementById('density').value = c.density ?? '';
+                    document.getElementById('nfcTag').value = c.nfc_tag_uid || '';
+                    document.getElementById('scaleDevice').value = c.scale_device || '';
                     navigateTo('add');
                 },
             },
@@ -671,24 +881,37 @@ async function applyUsage(reagent, endpoint, amount, note = '') {
 }
 
 async function useWithScale(reagent) {
-    const before = Number(reagent.quantity || 0);
-    const afterStr = prompt(`${reagent.name}의 저울로 잰 남은 무게를 입력하세요 (현재: ${before})`);
-    if(afterStr === null) return;
-    const after = parseFloat(afterStr);
-    if(Number.isNaN(after) || after < 0) {
+    const before = Number(reagent.quantity ?? 0);
+    const densityHint = hasDensity(reagent)
+        ? `, 밀도 ${formatNumberDisplay(reagent.density, 4)} g/mL`
+        : '';
+    const promptLabel = `${reagent.name}의 저울로 잰 남은 무게(g)를 입력하세요 (현재: ${formatNumberDisplay(before)} g${densityHint})`;
+    const massStr = prompt(promptLabel);
+    if(massStr === null) return;
+    const measuredMass = parseFloat(massStr);
+    if(Number.isNaN(measuredMass) || measuredMass < 0) {
         alert('올바른 값을 입력해주세요 (0 이상의 숫자).');
         return;
     }
-    if(after > before) {
-        if(!confirm('입력한 값이 현재 수량보다 큽니다. 계속하시겠습니까?')) return;
+    if(!Number.isNaN(before) && measuredMass > before) {
+        if(!confirm('입력한 값이 현재 무게보다 큽니다. 계속하시겠습니까?')) return;
+    }
+    if(!hasDensity(reagent)) {
+        const proceed = confirm('이 시약에 밀도가 설정되지 않았습니다. 무게는 저장되지만 mL 환산은 되지 않습니다. 계속하시겠습니까?');
+        if(!proceed) return;
     }
     try {
         const updated = await apiRequest(`/reagents/${encodeURIComponent(reagent.slug)}/measurement`, {
             method: 'POST',
-            body: { new_quantity: after, source: 'scale' },
+            body: { measured_mass: measuredMass, source: 'scale' },
         });
         replaceReagentInState(updated);
         renderList();
+        const massDisplay = formatNumberDisplay(updated.quantity);
+        const volumeDisplay = updated.volume_ml !== null && updated.volume_ml !== undefined
+            ? formatNumberDisplay(updated.volume_ml)
+            : null;
+        alert(`측정이 저장되었습니다. 현재 무게: ${massDisplay} g${volumeDisplay ? `, 부피: ${volumeDisplay} mL` : ''}`);
     } catch (err) {
         handleApiError(err, '측정값을 반영하지 못했습니다.');
     }
@@ -716,7 +939,7 @@ function exportCSV() {
         alert('내보낼 데이터가 없습니다.');
         return;
     }
-    const rows = [['id','name','formula','cas','location','storage','expiry','quantity','ghs','used','discarded','disposal']];
+    const rows = [['id','name','formula','cas','location','storage','expiry','quantity_g','volume_ml','density_g_ml','ghs','used','discarded','disposal','nfc_tag_uid','scale_device']];
     chemicals.forEach(c => {
         rows.push([
             c.id,
@@ -727,10 +950,14 @@ function exportCSV() {
             c.storage || '',
             c.expiry || '',
             c.quantity ?? 0,
+            c.volume_ml ?? '',
+            c.density ?? '',
             Array.isArray(c.ghs) ? c.ghs.join(';') : '',
             c.used ?? 0,
             c.discarded ?? 0,
             c.disposal || '',
+            c.nfc_tag_uid || '',
+            c.scale_device || '',
         ]);
     });
     const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
@@ -806,12 +1033,14 @@ function showChemicalDetail(id) {
 
             <div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:start">
               <div>
-                <p><strong>Quantity</strong>: <span id="chem-qty">${chem.quantity ?? 0}</span></p>
-                <p><strong>CAS</strong>: ${escapeHtml(chem.cas || '-')}</p>
-                <p><strong>Formula</strong>: ${escapeHtml(chem.formula || '-')}</p>
-                <p><strong>Location</strong>: ${escapeHtml(chem.location || '-')}</p>
-                <p><strong>Storage</strong>: ${escapeHtml(chem.storage || '-')}</p>
-                <p><strong>Expiry</strong>: ${escapeHtml(chem.expiry || '-')}</p>
+                                <p><strong>Quantity (g)</strong>: <span id="chem-qty">${escapeHtml(formatNumberDisplay(chem.quantity))}</span></p>
+                                <p><strong>Volume (mL)</strong>: ${escapeHtml(formatNumberDisplay(chem.volume_ml))}</p>
+                                <p><strong>Density (g/mL)</strong>: ${escapeHtml(formatNumberDisplay(chem.density, 4))}</p>
+                                <p><strong>CAS</strong>: ${escapeHtml(chem.cas || '-')}</p>
+                                <p><strong>Formula</strong>: ${escapeHtml(chem.formula || '-')}</p>
+                                <p><strong>Location</strong>: ${escapeHtml(chem.location || '-')}</p>
+                                <p><strong>Storage</strong>: ${escapeHtml(chem.storage || '-')}</p>
+                                <p><strong>Expiry</strong>: ${escapeHtml(chem.expiry || '-')}</p>
               </div>
               <div>
                 <p><strong>Hazard</strong>: ${escapeHtml(chem.hazard || '-')}</p>
@@ -823,6 +1052,8 @@ function showChemicalDetail(id) {
                         ? chem.ghs.map(g => `<span class="tag">${escapeHtml(g)}</span>`).join(' ')
                         : '-'
                 }</p>
+                                <p><strong>NFC Tag</strong>: ${escapeHtml(chem.nfc_tag_uid || '-')}</p>
+                                <p><strong>Scale Device</strong>: ${escapeHtml(chem.scale_device || '-')}</p>
               </div>
             </div>
 
@@ -950,6 +1181,7 @@ async function initApp() {
     await seedDefaultDataIfNeeded();
     renderList();
     bindAutocomplete();
+    bindLocationAutocomplete();
     handleHashRoute();
 }
 

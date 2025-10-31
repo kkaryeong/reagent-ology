@@ -38,14 +38,24 @@ python -m uvicorn backend.main:app --reload
 # 배경 이미지 등 정적 파일 포함, 현재 디렉토리를 그대로 서빙
 python -m http.server 5500 --directory .
 ```
-- 접속 URL: http://127.0.0.1:5500/reagent%20ology.html
+- 접속 URL: http://127.0.0.1:5500/reagent_ology.html
   - 각 페이지에 고유 URL을 부여하는 해시 라우팅 사용 예: `#/add`, `#/inventory`, `#/auto-db`
-  - 예: http://127.0.0.1:5500/reagent%20ology.html#/add
+  - 예: http://127.0.0.1:5500/reagent_ology.html#/add
 
 ## 기본 기능
 - 시약 등록/수정/삭제, 수량 사용/폐기/저울 측정 기록
+- 시약별 밀도(g/mL), NFC Tag UID, 저울/시리얼 포트 정보를 저장해 하드웨어 연동 준비
 - 상세 페이지에서 사용 이력 확인
 - 이름 자동완성: 로컬 CSV → 부족 시 PubChem으로 보강
+
+## 밀도 및 저울 연동
+- `Density (g/mL)` 입력 시, 저울에서 측정한 무게(g)를 자동으로 mL로 환산해 DB에 저장합니다.
+- `NFC Tag UID`와 `Scale Device / Port` 필드로 각 시약을 하드웨어와 매핑할 수 있습니다.
+- 저울 측정은 두 가지 방식으로 기록할 수 있습니다.
+  1. 프런트엔드 `Use with Scale` 버튼 → `/api/reagents/{slug}/measurement`에 `measured_mass` 전달
+  2. 하드웨어 연동 시 `/api/measurements/weight`에 `{ "nfc_tag_uid": "...", "measured_mass": 123.4 }` 형태로 호출
+     - 백엔드가 NFC 태그에 해당하는 시약을 찾아 무게/부피를 갱신하고 사용 로그를 남깁니다.
+  - 밀도가 지정되지 않은 경우 mL 환산 없이 무게만 갱신되며, 프런트 UI에서 경고합니다.
 
 ## 자동완성 DB 관리(CSV)
 - 경로: `data/autocomplete.csv`
@@ -96,7 +106,8 @@ reagent-ology/
 ├── data/
 │   └── autocomplete.csv     # 자동완성 DB CSV
 ├── requirements.txt
-└── reagent ology.html       # 프런트엔드(정적)
+├── reagent_ology.html       # 프런트엔드(정적, 배포용)
+└── reagent_ology_edit.html  # 편집 검토용(동일 내용 미러)
 ```
 
 ## 라이선스
