@@ -268,6 +268,63 @@ def update_item(
     }
 
 
+def add_or_update_from_reagent(
+    name: str,
+    formula: str,
+    *,
+    cas: Optional[str] = None,
+    storage: Optional[str] = None,
+    ghs: Optional[List[str]] = None,
+    disposal: Optional[str] = None,
+    density: Optional[float] = None,
+) -> None:
+    """시약 DB에서 자동완성 DB로 추가/업데이트 (내부용)
+    
+    이미 존재하면 업데이트, 없으면 추가
+    """
+    if not name or not formula:
+        return
+    
+    with _lock:
+        items = _read_all()
+        idx = next((i for i, c in enumerate(items) if c.name.lower() == name.lower()), None)
+        
+        ghs_clean = [s.strip() for s in (ghs or []) if s.strip()]
+        cas_clean = cas.strip() if cas else None
+        storage_clean = storage.strip() if storage else None
+        disposal_clean = disposal.strip() if disposal else None
+        
+        if idx is not None:
+            # 업데이트
+            items[idx] = Chemical(
+                name=name.strip(),
+                formula=formula.strip(),
+                synonyms=items[idx].synonyms,  # 기존 synonyms 유지
+                cas=cas_clean,
+                storage=storage_clean,
+                ghs=ghs_clean,
+                disposal=disposal_clean,
+                density=density,
+            )
+        else:
+            # 추가
+            items.append(
+                Chemical(
+                    name=name.strip(),
+                    formula=formula.strip(),
+                    synonyms=[],
+                    cas=cas_clean,
+                    storage=storage_clean,
+                    ghs=ghs_clean,
+                    disposal=disposal_clean,
+                    density=density,
+                )
+            )
+        
+        items.sort(key=lambda c: c.name.lower())
+        _write_all(items)
+
+
 def search_local(query: str, limit: int = 8) -> List[dict]:
     if not query:
         return []

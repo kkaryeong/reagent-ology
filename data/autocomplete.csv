@@ -1,18 +1,19 @@
 name,formula,synonyms,cas,storage,ghs,disposal,density
-Sodium Chloride,NaCl,"Salt;Table Salt",7647-14-5,RT,"Irritant","일반폐기물",2.165
-Sodium Hydroxide,NaOH,"Caustic Soda",1310-73-2,"RT, sealed","Corrosive","화학폐기물",2.13
-Sodium Bicarbonate,NaHCO3,"Baking Soda;Sodium Hydrogen Carbonate",144-55-8,RT,"Irritant","일반폐기물",2.20
-Sodium Carbonate,Na2CO3,"Soda Ash;Washing Soda",497-19-8,RT,"Irritant","일반폐기물",2.54
-Potassium Chloride,KCl,,7447-40-7,RT,,"일반폐기물",1.98
-Hydrochloric Acid,HCl,"Muriatic Acid",7647-01-0,"Cool, vented","Corrosive","화학폐기물",1.19
-Sulfuric Acid,H2SO4,,7664-93-9,"Cool, ventilated","Corrosive","화학폐기물",1.84
-Nitric Acid,HNO3,,7697-37-2,"Cool, amber","Corrosive;Oxidizer","화학폐기물",1.50
-Acetic Acid,CH3COOH,"Ethanoic Acid;Vinegar (acetic)",64-19-7,RT,"Corrosive;Flammable","화학폐기물",1.05
-Ethanol,C2H6O,"Ethyl Alcohol",64-17-5,"Flammable cabinet","Flammable","화학폐기물",0.789
-Methanol,CH3OH,"Methyl Alcohol",67-56-1,"Flammable cabinet","Flammable;Toxic","화학폐기물",0.792
-Acetone,C3H6O,"Propanone",67-64-1,"Flammable cabinet","Flammable;Irritant","화학폐기물",0.7845
-Isopropyl Alcohol,C3H8O,"Isopropanol;IPA",67-63-0,"Flammable cabinet","Flammable;Irritant","화학폐기물",0.785
-Glucose,C6H12O6,"D-Glucose;Dextrose",50-99-7,RT,,"일반폐기물",1.54
-Sodium Sulfate,Na2SO4,,7757-82-6,RT,,"일반폐기물",2.66
-Sodium Sulfite,Na2SO3,,7757-83-7,RT,"Irritant","화학폐기물",2.63
-Sodium Thiosulfate,Na2S2O3,,7772-98-7,RT,,"일반폐기물",1.67
+Acetic Acid,CH3COOH,Ethanoic Acid;Vinegar (acetic),64-19-7,RT,Corrosive;Flammable,화학폐기물,1.05
+Acetone,C3H6O,Propanone,67-64-1,Flammable cabinet,Flammable;Irritant,화학폐기물,0.7845
+Ethanol,C2H6O,Ethyl Alcohol,64-17-5,Flammable cabinet,Flammable,화학폐기물,0.789
+Glucose,C6H12O6,D-Glucose;Dextrose,50-99-7,RT,,일반폐기물,1.54
+Hydrochloric Acid,HCl,Muriatic Acid,7647-01-0,"Cool, vented",Corrosive,화학폐기물,1.19
+Isopropyl Alcohol,C3H8O,Isopropanol;IPA,67-63-0,Flammable cabinet,Flammable;Irritant,화학폐기물,0.785
+Methanol,CH3OH,Methyl Alcohol,67-56-1,Flammable cabinet,Flammable;Toxic,화학폐기물,0.792
+Nitric Acid,HNO3,,7697-37-2,"Cool, amber",Corrosive;Oxidizer,화학폐기물,1.5
+Potassium Chloride,KCl,,7447-40-7,RT,,일반폐기물,1.98
+Sodium Bicarbonate,NaHCO3,Baking Soda;Sodium Hydrogen Carbonate,144-55-8,RT,Irritant,일반폐기물,2.2
+Sodium Carbonate,Na2CO3,Soda Ash;Washing Soda,497-19-8,RT,Irritant,일반폐기물,2.54
+Sodium Chloride,NaCl,Salt;Table Salt,7647-14-5,RT,Irritant,일반폐기물,2.165
+Sodium Hydroxide,NaOH,Caustic Soda,1310-73-2,"RT, sealed",Corrosive,화학폐기물,2.13
+Sodium Sulfate,Na2SO4,,7757-82-6,RT,,일반폐기물,2.66
+Sodium Sulfite,Na2SO3,,7757-83-7,RT,Irritant,화학폐기물,2.63
+Sodium Thiosulfate,Na2S2O3,,7772-98-7,RT,,일반폐기물,1.67
+Sulfuric Acid,H2SO4,,7664-93-9,"Cool, ventilated",Corrosive,화학폐기물,1.84
+Test Potassium Chloride,KCl,,7447-40-7,Cool storage,Irritant,일반폐기물,2.0

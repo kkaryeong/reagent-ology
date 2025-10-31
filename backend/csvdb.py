@@ -15,6 +15,8 @@ from datetime import datetime, date
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 
+from . import localdb
+
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 REAGENTS_CSV = DATA_DIR / "reagents.csv"
@@ -258,7 +260,18 @@ def create_reagent(data: Dict[str, Any]) -> Dict[str, Any]:
         
         items.append(reagent)
         _write_reagents(items)
-        
+    
+    # 자동완성 DB에도 추가
+    localdb.add_or_update_from_reagent(
+        name=reagent.name,
+        formula=reagent.formula,
+        cas=reagent.cas,
+        storage=reagent.storage,
+        ghs=reagent.ghs,
+        disposal=reagent.disposal,
+        density=reagent.density,
+    )
+    
     return reagent_to_dict(reagent)
 
 
@@ -317,7 +330,18 @@ def update_reagent(identifier: str, data: Dict[str, Any]) -> Optional[Dict[str, 
         reagent.updated_at = datetime.utcnow().isoformat()
         
         _write_reagents(items)
-        
+    
+    # 자동완성 DB에도 업데이트
+    localdb.add_or_update_from_reagent(
+        name=reagent.name,
+        formula=reagent.formula,
+        cas=reagent.cas,
+        storage=reagent.storage,
+        ghs=reagent.ghs,
+        disposal=reagent.disposal,
+        density=reagent.density,
+    )
+    
     return reagent_to_dict(reagent)
 
 
