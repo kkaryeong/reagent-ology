@@ -1,5 +1,5 @@
 id,slug,name,formula,cas,location,storage,expiry,hazard,ghs,disposal,density,volume_ml,nfc_tag_uid,scale_device,quantity,used,discarded,created_at,updated_at
-1,acetone-67-64-1,Acetone,C3H6O,67-64-1,Shelf A,RT,,Flammable,Flammable,화학폐기물,0.7845,637.3486297004462,NFC-ACE-001,RS232-1,500.0,0.0,0.0,2025-10-31T00:21:57.330510,2025-10-31T00:21:57.330510
+1,67-64-1,아세톤,CH3COCH3,67-64-1,Shelf A,RT,,Flammable,Flammable,화학폐기물,0.7845,637.3486297004462,NFC-ACE-001,RS232-1,500.0,0.0,0.0,2025-10-31T00:21:57.330510,2025-10-31T01:33:14.549526
 2,ethanol-64-17-5,Ethanol,C2H6O,64-17-5,Shelf B,RT,,Flammable,Flammable,화학폐기물,0.789,1267.4271229404308,NFC-ETH-001,RS232-1,1000.0,0.0,0.0,2025-10-31T00:21:57.332877,2025-10-31T00:21:57.332877
 3,methanol-67-56-1,Methanol,CH3OH,67-56-1,Shelf A,RT,,"Flammable, Toxic",Flammable;Toxic,화학폐기물,0.792,378.78787878787875,NFC-MEOH-001,RS232-2,300.0,0.0,0.0,2025-10-31T00:21:57.334177,2025-10-31T00:21:57.334177
 4,sodium-chloride-7647-14-5,Sodium Chloride,NaCl,7647-14-5,Shelf C,RT,,,,일반폐기물,2.165,461.8937644341801,NFC-NACL-001,RS232-3,1000.0,0.0,0.0,2025-10-31T00:21:57.335340,2025-10-31T00:21:57.335340

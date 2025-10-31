@@ -631,6 +631,8 @@ function navigateTo(route, param = '') {
 
 async function saveChemical() {
     const idValue = document.getElementById('edit-id').value;
+    console.log('💾 Save Chemical - Edit ID:', idValue); // 디버그
+    
     const name = document.getElementById('name').value.trim();
     const formula = document.getElementById('formula').value.trim();
     const cas = document.getElementById('cas').value.trim();
@@ -678,15 +680,18 @@ async function saveChemical() {
     };
 
     const existing = idValue ? chemicals.find(c => c.id === Number(idValue)) : null;
+    console.log('🔍 Existing reagent found:', existing ? `${existing.name} (slug: ${existing.slug})` : 'None - Creating new');
 
     try {
         let saved;
         if(existing) {
+            console.log('✏️ Updating existing reagent via PUT');
             saved = await apiRequest(`/reagents/${encodeURIComponent(existing.slug)}`, {
                 method: 'PUT',
                 body: payload,
             });
         } else {
+            console.log('➕ Creating new reagent via POST');
             saved = await apiRequest('/reagents', {
                 method: 'POST',
                 body: payload,
