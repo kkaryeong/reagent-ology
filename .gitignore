@@ -4,3 +4,22 @@ dist/
 build/
 .vscode/
 .DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+
+# Database (옛 SQL 파일)
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*_backup.py
+*_sql_backup.py
