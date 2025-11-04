@@ -178,7 +178,20 @@
                 <input type="number" step="0.0001" id="density" placeholder="Density (g/mL)">
                 <input type="text" id="nfcTag" placeholder="NFC Tag UID">
                 <input type="text" id="scaleDevice" placeholder="Scale Device / Port">
+                <input id="tag_uid" placeholder="NFC UID (예: 04A224...)" />
+                <select id="state">
+                <option value="liquid">liquid</option>
+                <option value="solid">solid</option>
+                </select>
+                <input id="density" type="number" step="0.0001" placeholder="Density (g/mL)" />
+                <input id="purchased_ml" type="number" step="0.1" placeholder="Purchased Volume (mL)" />
+                <select id="unit_default">
+                <option value="ml">ml</option>
+                <option value="g">g</option>
+                </select>
+
                 <button onclick="saveChemical()" class="action-btn small">Save</button>
+                <button onclick="saveChemicalPurchaseBased()" class="action-btn small">운영(구매 기반) 등록</button>
                 <button onclick="resetForm()" class="small">Clear</button>
             </div>
             <div id="form-note" class="meta">필수: Name, Formula, Location, Quantity(기본 g). 밀도(g/mL)를 입력하면 무게 측정 시 mL 환산이 가능합니다.</div>
@@ -240,6 +253,18 @@
     </div>
 
 <script>
+    // Apps Script Web App URL
+  window.WEBAPP = "https://script.google.com/macros/s/AKfycbw1ILJNZZLpFhF2C1y4oOXqNWoUuXbN5PY47hhaMaJ1WUMPiXfo0oTwCb_SN4e8dBBF/exec";
+
+  window.apiPost = async function(path, payload) {
+    const r = await fetch(`${window.WEBAPP}?path=${encodeURIComponent(path)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload || {})
+    });
+    return r.json();
+  };
+</script>
 const API_BASE = 'http://127.0.0.1:8000/api';
 const USER_KEY = 'reagentology_users_v1';
 const LOGGED_KEY = 'reagentology_loggedin';
@@ -706,6 +731,37 @@ async function saveChemical() {
     }
 }
 
+async function saveChemicalPurchaseBased(){
+  const name = document.getElementById('name').value.trim();
+  const tag_uid = document.getElementById('tag_uid').value.trim();
+  const state = document.getElementById('state').value;
+  const density = parseFloat(document.getElementById('density').value);
+  const purchased_ml = parseFloat(document.getElementById('purchased_ml').value);
+  const unit = document.getElementById('unit_default').value;
+
+  if(!name || !tag_uid || !state || !Number.isFinite(density) || !Number.isFinite(purchased_ml)){
+    alert('필수: 이름 / tag_uid / state / density / purchased_ml'); 
+    return;
+  }
+
+  const res = await apiPost('upsertByPurchase', {
+    name, tag_uid, state,
+    density_g_per_ml: density,
+    purchased_volume_ml: purchased_ml,
+    unit
+  });
+
+  if(!res.ok){ alert('등록 실패: ' + (res.error || 'unknown')); return; }
+
+  const goNow = confirm(`등록 완료!\n초기 순질량 ${res.initial_net_g.toFixed(2)} g\n\n지금 초기 무게 측정을 진행할까요?`);
+  if(goNow){
+    location.hash = `#/r/${encodeURIComponent(tag_uid)}?init=1`;
+  }else{
+    location.hash = '#/inventory';
+  }
+}
+
+
 function renderList() {
     const list = document.getElementById('chemical-list');
     const discardList = document.getElementById('discard-list');
@@ -1063,7 +1119,7 @@ function showChemicalDetail(id) {
             </div>
 
             <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
-                            <button class="small" onclick="triggerManualMeasurement(${chem.id})">수동 변경</button>
+                            <button class="small" onclick="triggerManualMeasurement($chem.id)">수동 변경</button>
                             <button class="small" onclick="navigateTo('inventory')">목록으로</button>
               <button class="small" onclick="copyReagentLink('${encodeURIComponent(chem.slug)}')">링크 복사</button>
             </div>
@@ -1101,6 +1157,15 @@ function handleHashRoute() {
         showPage('login-page');
         return;
     }
+      // ✅ NFC 라우트 추가 (이 부분 새로 추가)
+  // URL이 #/r/<tag_uid> 형식이면 스캔 페이지로 이동
+  if(route === 'r' && param){
+    // 초기 측정 여부(init=1) 확인
+    const query = location.hash.split('?')[1] || '';
+    const isInit = query.includes('init=1');
+    renderScanPage(param, isInit);
+    return;
+  }
     // 정적 섹션 라우팅
     const pages = new Set(['about','add','discard','inventory','usage','auto-db']);
     if(pages.has(route)) {
@@ -1122,6 +1187,43 @@ function handleHashRoute() {
     }
     showPage('about');
 }
+
+// NFC 페이지 렌더 함수
+function renderScanPage(tag_uid, isInit){
+  const about = document.getElementById('about'); // 예시로 about 페이지를 사용
+  about.innerHTML = `
+    <h2>NFC: ${tag_uid}</h2>
+    <div id="scan-status">${isInit ? '초기 무게 측정 대기중… (가득 찬 상태로 올려 주세요)' : '무게 측정 대기중…'}</div>
+    <div id="scan-info" style="margin-top:10px"></div>
+    <div id="scan-logs" style="margin-top:10px"></div>
+  `;
+
+  // 큐 등록 (시그널용)
+  apiPost('enqueue', { tag_uid }).catch(()=>{});
+
+  async function refresh(){
+    const info = await apiPost('getReagent', { tag_uid });
+    if(info.ok){
+      const d = info.reagent;
+      const qty = (d.current_ml!=null)
+        ? `${d.current_ml.toFixed(2)} ml`
+        : `${d.current_net_g.toFixed(2)} g`;
+      document.getElementById('scan-info').textContent = `${d.name} 현재 잔량: ${qty}`;
+    }
+    const logs = await apiPost('getLogs', { tag_uid, limit: 1 });
+    if(logs.ok && logs.logs[0]){
+      const last = logs.logs[0];
+      document.getElementById('scan-status').textContent =
+        (last.note === 'INIT')
+        ? '초기 무게 측정 완료 ✅'
+        : (isInit ? '초기 측정 대기/진행 중…' : '측정 대기/진행 중…');
+    }
+  }
+  refresh();
+  clearInterval(window.__scanTimer);
+  window.__scanTimer = setInterval(refresh, 2000);
+}
+
 
 window.addEventListener('hashchange', () => {
     if(suppressHashRoute) return;
