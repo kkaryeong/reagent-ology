@@ -1,3 +1,15 @@
 id,reagent_id,prev_qty,new_qty,delta,source,note,created_at
 1,1,50.0,40.0,-10.0,test,Test usage,2025-10-30T07:26:02.758064
 2,1,50.0,40.0,-10.0,test,Test usage,2025-10-30T07:26:14.107173
+3,1,500.0,15.16,-484.84,scale,Weight measured from scale: 15.16g,2025-11-05T09:50:41.591330
+4,1,15.16,15.16,0.0,scale,Weight measured from scale: 15.16g,2025-11-05T09:50:51.524807
+5,2,1000.0,15.16,-984.84,scale,Weight measured from scale: 15.16g,2025-11-05T09:51:51.424294
+6,4,1000.0,15.16,-984.84,scale,Weight measured from scale: 15.16g,2025-11-05T09:53:04.710283
+7,1,15.16,0.0,-15.16,scale,Weight measured from scale: 0.0g,2025-11-05T10:10:48.906634
+8,1,0.0,15.16,15.16,scale,Weight measured from scale: 15.16g,2025-11-05T10:11:03.005407
+9,1,15.16,15.16,0.0,scale,Weight measured from scale: 15.16g,2025-11-05T10:18:14.116264
+10,1,15.16,18.55,3.3900000000000006,scale,Weight measured from scale: 18.55g,2025-11-05T10:37:52.729020
+11,1,18.55,18.5,-0.05000000000000071,scale,Weight measured from scale: 18.5g,2025-11-05T10:50:47.755070
+12,1,18.5,8.5,-10.0,discard,,2025-11-05T11:01:25.522742
+13,1,8.5,0.0,-8.5,scale,Weight measured from scale: 0.0g,2025-11-05T11:53:14.067637
+14,1,0.0,15.1,15.1,scale,Weight measured from scale: 15.1g,2025-11-05T11:53:52.671963

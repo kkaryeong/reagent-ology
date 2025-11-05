@@ -3,7 +3,7 @@
 High school project version - simple CSV storage without SQL complexity.
 
 CSV schemas:
-    reagents.csv: id,slug,name,formula,cas,location,storage,expiry,hazard,ghs,disposal,density,volume_ml,nfc_tag_uid,scale_device,quantity,used,discarded,created_at,updated_at
+    reagents.csv: id,slug,name,formula,cas,location,storage,state,expiry,hazard,ghs,disposal,density,volume_ml,nfc_tag_uid,scale_device,quantity,used,discarded,created_at,updated_at
     usage_logs.csv: id,reagent_id,prev_qty,new_qty,delta,source,note,created_at
 """
 from __future__ import annotations
@@ -35,6 +35,7 @@ class Reagent:
     quantity: float = 0.0
     cas: Optional[str] = None
     storage: Optional[str] = None
+    state: Optional[str] = None  # 'liquid' | 'solid'
     expiry: Optional[str] = None  # ISO format YYYY-MM-DD
     hazard: Optional[str] = None
     ghs: List[str] = field(default_factory=list)
@@ -103,6 +104,7 @@ def _read_reagents() -> List[Reagent]:
                 cas=row.get("cas") or None,
                 location=row["location"],
                 storage=row.get("storage") or None,
+                state=row.get("state") or None,
                 expiry=row.get("expiry") or None,
                 hazard=row.get("hazard") or None,
                 ghs=ghs,
@@ -125,7 +127,7 @@ def _write_reagents(items: List[Reagent]) -> None:
     _ensure_data_dir()
     with REAGENTS_CSV.open("w", encoding="utf-8", newline="") as f:
         fieldnames = [
-            "id", "slug", "name", "formula", "cas", "location", "storage", "expiry",
+            "id", "slug", "name", "formula", "cas", "location", "storage", "state", "expiry",
             "hazard", "ghs", "disposal", "density", "volume_ml", "nfc_tag_uid",
             "scale_device", "quantity", "used", "discarded", "created_at", "updated_at"
         ]
@@ -141,6 +143,7 @@ def _write_reagents(items: List[Reagent]) -> None:
                 "cas": r.cas or "",
                 "location": r.location,
                 "storage": r.storage or "",
+                "state": r.state or "",
                 "expiry": r.expiry or "",
                 "hazard": r.hazard or "",
                 "ghs": ";".join(r.ghs) if r.ghs else "",
@@ -243,6 +246,7 @@ def create_reagent(data: Dict[str, Any]) -> Dict[str, Any]:
             cas=data.get("cas"),
             location=data["location"],
             storage=data.get("storage"),
+            state=data.get("state"),
             expiry=data.get("expiry"),
             hazard=data.get("hazard"),
             ghs=data.get("ghs", []),
@@ -257,7 +261,14 @@ def create_reagent(data: Dict[str, Any]) -> Dict[str, Any]:
             created_at=now,
             updated_at=now,
         )
-        
+        # 밀도와 질량이 있고, 명시적 volume_ml이 없으면 역산하여 저장
+        if (reagent.volume_ml is None) and (reagent.density is not None) and (reagent.density > 0) and (reagent.state == "liquid"):
+            try:
+                reagent.volume_ml = reagent.quantity / reagent.density
+            except Exception:
+                # 계산 실패 시 무시 (CSV 저장 형식 유지)
+                pass
+
         items.append(reagent)
         _write_reagents(items)
     
@@ -292,6 +303,8 @@ def update_reagent(identifier: str, data: Dict[str, Any]) -> Optional[Dict[str, 
         reagent = items[idx]
         
         # 업데이트 가능한 필드만 변경
+        changed_quantity = False
+        changed_density = False
         if "name" in data:
             reagent.name = data["name"]
         if "formula" in data:
@@ -304,6 +317,8 @@ def update_reagent(identifier: str, data: Dict[str, Any]) -> Optional[Dict[str, 
             reagent.storage = data["storage"]
         if "expiry" in data:
             reagent.expiry = data["expiry"]
+        if "state" in data:
+            reagent.state = data["state"]
         if "hazard" in data:
             reagent.hazard = data["hazard"]
         if "ghs" in data:
@@ -312,6 +327,7 @@ def update_reagent(identifier: str, data: Dict[str, Any]) -> Optional[Dict[str, 
             reagent.disposal = data["disposal"]
         if "density" in data:
             reagent.density = data["density"]
+            changed_density = True
         if "volume_ml" in data:
             reagent.volume_ml = data["volume_ml"]
         if "nfc_tag_uid" in data:
@@ -320,12 +336,22 @@ def update_reagent(identifier: str, data: Dict[str, Any]) -> Optional[Dict[str, 
             reagent.scale_device = data["scale_device"]
         if "quantity" in data:
             reagent.quantity = data["quantity"]
+            changed_quantity = True
         if "used" in data:
             reagent.used = data["used"]
         if "discarded" in data:
             reagent.discarded = data["discarded"]
         if "slug" in data:
             reagent.slug = data["slug"]
+
+        # 자동 부피 갱신: quantity 또는 density가 변경되었고, 별도로 volume_ml을 지정하지 않았다면
+        if ("volume_ml" not in data) and (changed_quantity or changed_density):
+            if (reagent.density is not None) and reagent.density > 0 and (reagent.state == "liquid"):
+                try:
+                    reagent.volume_ml = reagent.quantity / reagent.density
+                except Exception:
+                    # 계산 실패 시 기존 값 유지
+                    pass
         
         reagent.updated_at = datetime.utcnow().isoformat()
         
@@ -415,6 +441,7 @@ def reagent_to_dict(r: Reagent) -> Dict[str, Any]:
         "cas": r.cas,
         "location": r.location,
         "storage": r.storage,
+        "state": r.state,
         "expiry": r.expiry,
         "hazard": r.hazard,
         "ghs": r.ghs,
@@ -422,7 +449,6 @@ def reagent_to_dict(r: Reagent) -> Dict[str, Any]:
         "density": r.density,
         "volume_ml": r.volume_ml,
         "nfc_tag_uid": r.nfc_tag_uid,
-        "scale_device": r.scale_device,
         "quantity": r.quantity,
         "used": r.used,
         "discarded": r.discarded,

@@ -1,0 +1,19 @@
+Reagent-ology NFC 스티커 안내
+
+스마트폰 스캔 시 열 URL (권장: mDNS .local)
+http://ppofluxus.local:8000/reagent_ology.html#/r/UID
+
+예시:
+http://ppofluxus.local:8000/reagent_ology.html#/r/04:E4:12:34:56
+
+(대안) LAN IP 기반:
+http://172.30.1.62:8000/reagent_ology.html#/r/UID
+http://172.30.1.62:8000/reagent_ology.html#/r/04:E4:12:34:56
+
+주의:
+- PC와 스마트폰은 같은 Wi‑Fi에 연결되어야 합니다.
+- .local 인식이 안 되면 공유기에서 PC IP를 고정 예약하고 고정 IP로 URL을 생성하세요.
+
+환경변수:
+- STICKER_ORIGIN 을 설정하면 임의의 호스트로 스티커 URL을 강제할 수 있습니다.
+  예) STICKER_ORIGIN=http://lab-nt.local:8000

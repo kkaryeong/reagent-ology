@@ -1,9 +1,9 @@
-id,slug,name,formula,cas,location,storage,expiry,hazard,ghs,disposal,density,volume_ml,nfc_tag_uid,scale_device,quantity,used,discarded,created_at,updated_at
-1,67-64-1,아세톤,CH3COCH3,67-64-1,Shelf A,RT,,Flammable,Flammable,화학폐기물,0.7845,637.3486297004462,NFC-ACE-001,RS232-1,500.0,0.0,0.0,2025-10-31T00:21:57.330510,2025-10-31T01:33:14.549526
-2,ethanol-64-17-5,Ethanol,C2H6O,64-17-5,Shelf B,RT,,Flammable,Flammable,화학폐기물,0.789,1267.4271229404308,NFC-ETH-001,RS232-1,1000.0,0.0,0.0,2025-10-31T00:21:57.332877,2025-10-31T00:21:57.332877
-3,methanol-67-56-1,Methanol,CH3OH,67-56-1,Shelf A,RT,,"Flammable, Toxic",Flammable;Toxic,화학폐기물,0.792,378.78787878787875,NFC-MEOH-001,RS232-2,300.0,0.0,0.0,2025-10-31T00:21:57.334177,2025-10-31T00:21:57.334177
-4,sodium-chloride-7647-14-5,Sodium Chloride,NaCl,7647-14-5,Shelf C,RT,,,,일반폐기물,2.165,461.8937644341801,NFC-NACL-001,RS232-3,1000.0,0.0,0.0,2025-10-31T00:21:57.335340,2025-10-31T00:21:57.335340
-5,sulfuric-acid-7664-93-9,Sulfuric Acid,H2SO4,7664-93-9,Shelf. A,"Cool, ventilated",,Corrosive,Corrosive,화학폐기물,1.84,54.347826086956516,mm,123,100.0,0.0,0.0,2025-10-31T00:48:44.085159,2025-10-31T00:48:44.085159
-6,sodium-sulfate-7757-82-6,Sodium Sulfate,Na2SO4,7757-82-6,Shelf. B,RT,,,,일반폐기물,2.66,45.48872180451128,22,1,121.0,0.0,0.0,2025-10-31T00:49:05.603161,2025-10-31T00:49:05.603161
-7,sodium-chloride-7647-14-5-1,Sodium Chloride,NaCl,7647-14-5,Shelf. 2,RT,,Irritant,Irritant,일반폐기물,2.165,461.8937644341801,,,1000.0,0.0,0.0,2025-10-31T00:55:51.306401,2025-10-31T00:55:51.306401
-8,7647-01-0,황산칼륨,K2SO4,7647-01-0,Shelf A,"Cool, vented",,Corrosive,Corrosive,화학폐기물,1.28,781.25,,,1000.0,0.0,0.0,2025-10-31T01:00:21.459720,2025-10-31T01:00:21.459720
+id,slug,name,formula,cas,location,storage,state,expiry,hazard,ghs,disposal,density,volume_ml,nfc_tag_uid,scale_device,quantity,used,discarded,created_at,updated_at
+1,67-64-1,아세톤,CH3COCH3,67-64-1,Shelf A,RT,liquid,,Flammable,Flammable,화학폐기물,0.7845,19.247928616953473,04:E4:B4:C2:43:20:90,RS232-1,15.1,0.0,10.0,2025-10-31T00:21:57.330510,2025-11-05T11:53:52.664392
+2,ethanol-64-17-5,Ethanol,C2H6O,64-17-5,Shelf B,RT,,,Flammable,Flammable,화학폐기물,0.789,1267.4271229404308,NFC-ETH-001,RS232-1,15.16,0.0,0.0,2025-10-31T00:21:57.332877,2025-11-05T09:51:51.420404
+3,methanol-67-56-1,Methanol,CH3OH,67-56-1,Shelf A,RT,,,"Flammable, Toxic",Flammable;Toxic,화학폐기물,0.792,378.78787878787875,NFC-MEOH-001,RS232-2,300.0,0.0,0.0,2025-10-31T00:21:57.334177,2025-10-31T00:21:57.334177
+4,sodium-chloride-7647-14-5,Sodium Chloride,NaCl,7647-14-5,Shelf C,RT,,,,,일반폐기물,2.165,461.8937644341801,NFC-NACL-001,RS232-3,15.16,0.0,0.0,2025-10-31T00:21:57.335340,2025-11-05T09:53:04.706256
+5,sulfuric-acid-7664-93-9,Sulfuric Acid,H2SO4,7664-93-9,Shelf. A,"Cool, ventilated",,,Corrosive,Corrosive,화학폐기물,1.84,54.347826086956516,mm,123,100.0,0.0,0.0,2025-10-31T00:48:44.085159,2025-10-31T00:48:44.085159
+6,sodium-sulfate-7757-82-6,Sodium Sulfate,Na2SO4,7757-82-6,Shelf. B,RT,liquid,,"Corrosive, Flammable",Corrosive;Flammable,일반폐기물,2.66,45.48872180451128,22,1,121.0,0.0,0.0,2025-10-31T00:49:05.603161,2025-11-05T10:50:11.398486
+7,sodium-chloride-7647-14-5-1,Sodium Chloride,NaCl,7647-14-5,Shelf. 2,RT,,,Irritant,Irritant,일반폐기물,2.165,461.8937644341801,,,1000.0,0.0,0.0,2025-10-31T00:55:51.306401,2025-10-31T00:55:51.306401
+8,7647-01-0,황산칼륨,K2SO4,7647-01-0,Shelf A,"Cool, vented",,,Corrosive,Corrosive,화학폐기물,1.28,781.25,,,1000.0,0.0,0.0,2025-10-31T01:00:21.459720,2025-10-31T01:00:21.459720

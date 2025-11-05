@@ -101,6 +101,17 @@
     .topbar-right { display:flex; gap:8px; align-items:center; }
     .danger-note { color:#ffdddd; background: rgba(220,53,69,0.12); padding:8px; border-radius:6px; margin-top:8px; }
     .meta { font-size:0.9rem; color:#e6f1f5; margin-top:8px; }
+
+    /* App-branded modal/alert */
+    .app-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.55); display:flex; align-items:center; justify-content:center; z-index:2000; }
+    .app-modal { width:min(90%,520px); background:#152833; color:#e8f6ff; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.4); overflow:hidden; }
+    .app-modal header { background:#1b8cae; padding:12px 16px; font-weight:700; }
+    .app-modal .body { padding:16px; white-space:pre-wrap; line-height:1.5; }
+    .app-modal footer { padding:12px 16px; display:flex; gap:8px; justify-content:flex-end; background:rgba(255,255,255,0.03); }
+    .app-btn { padding:8px 14px; border:none; border-radius:6px; cursor:pointer; }
+    .app-btn.primary { background:#1b8cae; color:#fff; }
+    .app-btn.ghost { background:transparent; color:#cfe9f3; border:1px solid rgba(255,255,255,0.2); }
+    .app-toast { position:fixed; left:50%; transform:translateX(-50%); bottom:24px; background:rgba(0,0,0,0.78); color:#fff; padding:10px 14px; border-radius:8px; z-index:2100; max-width:90%; text-align:center; }
 </style>
 </head>
 <body>
@@ -134,7 +145,7 @@
             <button onclick="navigateTo('discard')">시약 폐기</button>
             <button onclick="navigateTo('inventory')">연구실 보유 물질</button>
             <button onclick="navigateTo('usage')">시약 사용 현황</button>
-            <button onclick="navigateTo('auto-db')">자동완성 DB</button>
+            <!-- 불필요 탭 숨김: 저울 CSV 업로드 / 자동완성 DB -->
         </nav>
 
         <!-- 각 페이지 영역 -->
@@ -177,21 +188,12 @@
                 <input type="number" step="0.01" id="quantity" placeholder="Quantity (ml/g)">
                 <input type="number" step="0.0001" id="density" placeholder="Density (g/mL)">
                 <input type="text" id="nfcTag" placeholder="NFC Tag UID">
-                <input type="text" id="scaleDevice" placeholder="Scale Device / Port">
-                <input id="tag_uid" placeholder="NFC UID (예: 04A224...)" />
                 <select id="state">
                 <option value="liquid">liquid</option>
                 <option value="solid">solid</option>
                 </select>
-                <input id="density" type="number" step="0.0001" placeholder="Density (g/mL)" />
-                <input id="purchased_ml" type="number" step="0.1" placeholder="Purchased Volume (mL)" />
-                <select id="unit_default">
-                <option value="ml">ml</option>
-                <option value="g">g</option>
-                </select>
 
                 <button onclick="saveChemical()" class="action-btn small">Save</button>
-                <button onclick="saveChemicalPurchaseBased()" class="action-btn small">운영(구매 기반) 등록</button>
                 <button onclick="resetForm()" class="small">Clear</button>
             </div>
             <div id="form-note" class="meta">필수: Name, Formula, Location, Quantity(기본 g). 밀도(g/mL)를 입력하면 무게 측정 시 mL 환산이 가능합니다.</div>
@@ -245,6 +247,69 @@
             <ul id="usage-list"></ul>
         </div>
 
+        <div id="scale-csv" class="page">
+            <h2>저울 측정값 CSV 업로드</h2>
+            
+            <div class="about-section">
+                <h3>📤 CSV 파일 업로드</h3>
+                <p>저울에서 측정한 무게 데이터를 CSV 파일로 업로드하여 시약 수량을 일괄 업데이트합니다.</p>
+                
+                <div style="margin-top:12px;">
+                    <input type="file" id="csvFileInput" accept=".csv" style="padding:8px;">
+                    <button onclick="uploadScaleCsvFile()" class="action-btn" style="background-color:#17a2b8; margin-left:8px;">
+                        업로드 및 처리
+                    </button>
+                </div>
+                
+                <div id="csv-upload-result" style="margin-top:12px; padding:10px; background:rgba(0,0,0,0.3); border-radius:4px; display:none;">
+                    <h4>처리 결과</h4>
+                    <div id="csv-result-content"></div>
+                </div>
+            </div>
+
+            <div class="about-section">
+                <h3>📋 CSV 파일 형식</h3>
+                <p>다음 형식의 CSV 파일을 사용하세요 (UTF-8 인코딩):</p>
+                <pre style="background:rgba(0,0,0,0.4); padding:12px; border-radius:4px; overflow-x:auto;">
+nfc_tag_uid,reagent_id,reagent_name,measured_weight,timestamp,note,operator
+NFC-ACE-001,1,아세톤,485.5,2025-11-05T14:30:00,정기측정,김철수
+NFC-ETH-001,2,Ethanol,920.3,2025-11-05T14:31:00,사용후측정,김철수
+,3,Methanol,275.8,2025-11-05T14:32:00,,이영희</pre>
+                
+                <h4>필드 설명:</h4>
+                <ul style="list-style:disc; padding-left:20px;">
+                    <li><strong>nfc_tag_uid, reagent_id, reagent_name</strong>: 최소 하나 필수 (시약 식별용)</li>
+                    <li><strong>measured_weight</strong>: 필수, 측정된 무게 (그램)</li>
+                    <li><strong>timestamp</strong>: 선택, 측정 시각 (ISO 8601 형식)</li>
+                    <li><strong>note</strong>: 선택, 메모</li>
+                    <li><strong>operator</strong>: 선택, 측정자 이름</li>
+                </ul>
+                
+                <button onclick="downloadSampleCsv()" class="small" style="margin-top:8px;">
+                    샘플 CSV 다운로드
+                </button>
+            </div>
+
+            <div class="about-section">
+                <h3>💾 실시간 측정값 저장</h3>
+                <p>저울로 측정한 값을 CSV 파일에 즉시 저장합니다 (DB에는 반영하지 않음).</p>
+                
+                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
+                    <input type="text" id="quick-nfc" placeholder="NFC Tag UID" style="flex:1; min-width:150px;">
+                    <input type="number" id="quick-weight" placeholder="무게 (g)" step="0.01" style="flex:1; min-width:120px;">
+                    <input type="text" id="quick-note" placeholder="메모" style="flex:1; min-width:150px;">
+                    <input type="text" id="quick-operator" placeholder="측정자" style="flex:1; min-width:100px;">
+                    <button onclick="saveQuickMeasurement()" class="action-btn" style="background-color:#28a745;">
+                        CSV에 저장
+                    </button>
+                </div>
+                
+                <p style="margin-top:8px; font-size:0.9em; opacity:0.8;">
+                    저장된 측정값은 data/scale_measurements.csv 파일에 기록되며, 위의 업로드 기능으로 DB에 반영할 수 있습니다.
+                </p>
+            </div>
+        </div>
+
         <!-- 상세 페이지 -->
         <div id="detail-page" class="page">
             <button onclick="showPage('inventory')" class="small">← 뒤로</button>
@@ -253,22 +318,14 @@
     </div>
 
 <script>
-    // Apps Script Web App URL
-  window.WEBAPP = "https://script.google.com/macros/s/AKfycbw1ILJNZZLpFhF2C1y4oOXqNWoUuXbN5PY47hhaMaJ1WUMPiXfo0oTwCb_SN4e8dBBF/exec";
-
-  window.apiPost = async function(path, payload) {
-    const r = await fetch(`${window.WEBAPP}?path=${encodeURIComponent(path)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload || {})
-    });
-    return r.json();
-  };
-</script>
-const API_BASE = 'http://127.0.0.1:8000/api';
+// API Base는 접속한 호스트(PC의 내부 IP 등)에 맞춰 동작하도록 동적으로 설정합니다.
+const API_BASE = (location && location.origin && location.origin.startsWith('http'))
+    ? `${location.origin}/api`
+    : 'http://127.0.0.1:8000/api';
 const USER_KEY = 'reagentology_users_v1';
 const LOGGED_KEY = 'reagentology_loggedin';
 const SEED_KEY = 'reagentology_seeded';
+const STICKER_HOST_KEY = 'reagentology_sticker_host';
 
 const DEFAULT_CHEMS = [
     {
@@ -281,7 +338,7 @@ const DEFAULT_CHEMS = [
         quantity: 500,
         density: 0.7845,
         nfc_tag_uid: 'NFC-ACE-001',
-        scale_device: 'RS232-1',
+        
         disposal: '화학폐기물',
     },
     {
@@ -294,7 +351,7 @@ const DEFAULT_CHEMS = [
         quantity: 1000,
         density: 0.789,
         nfc_tag_uid: 'NFC-ETH-001',
-        scale_device: 'RS232-1',
+        
         disposal: '화학폐기물',
     },
     {
@@ -307,7 +364,7 @@ const DEFAULT_CHEMS = [
         quantity: 300,
         density: 0.792,
         nfc_tag_uid: 'NFC-MEOH-001',
-        scale_device: 'RS232-2',
+        
         disposal: '화학폐기물',
     },
     {
@@ -320,7 +377,7 @@ const DEFAULT_CHEMS = [
         quantity: 1000,
         density: 2.165,
         nfc_tag_uid: 'NFC-NACL-001',
-        scale_device: 'RS232-3',
+        
         disposal: '일반폐기물',
     },
 ];
@@ -359,6 +416,95 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
+// Branded alert/confirm/toast
+function appAlert(message, opts={}) {
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.className = 'app-modal-overlay';
+        overlay.innerHTML = `
+            <div class="app-modal">
+                <header>${escapeHtml(opts.title || 'Reagent-ology')}</header>
+                <div class="body">${escapeHtml(String(message || ''))}</div>
+                <footer>
+                    <button class="app-btn primary" id="__app_ok">확인</button>
+                </footer>
+            </div>`;
+        document.body.appendChild(overlay);
+        const ok = overlay.querySelector('#__app_ok');
+        const close = () => { overlay.remove(); resolve(true); };
+        ok.addEventListener('click', close);
+        overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(); });
+    });
+}
+
+// Confirm dialog (branded)
+function appConfirm(message, opts={}) {
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.className = 'app-modal-overlay';
+        overlay.innerHTML = `
+            <div class="app-modal">
+                <header>${escapeHtml(opts.title || 'Reagent-ology')}</header>
+                <div class="body">${escapeHtml(String(message || ''))}</div>
+                <footer>
+                    <button class="app-btn" id="__app_cancel">취소</button>
+                    <button class="app-btn primary" id="__app_ok">확인</button>
+                </footer>
+            </div>`;
+        document.body.appendChild(overlay);
+        const ok = overlay.querySelector('#__app_ok');
+        const cancel = overlay.querySelector('#__app_cancel');
+        const close = (val) => { overlay.remove(); resolve(val); };
+        ok.addEventListener('click', () => close(true));
+        cancel.addEventListener('click', () => close(false));
+        overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(false); });
+    });
+}
+
+// Prompt dialog (branded)
+function appPrompt(message, opts={}) {
+    const {
+        inputType = 'text',
+        placeholder = '',
+        defaultValue = ''
+    } = opts || {};
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.className = 'app-modal-overlay';
+        overlay.innerHTML = `
+            <div class="app-modal">
+                <header>${escapeHtml(opts.title || 'Reagent-ology')}</header>
+                <div class="body">
+                    <div style="margin-bottom:8px;">${escapeHtml(String(message || ''))}</div>
+                    <input id="__app_input" type="${escapeHtml(inputType)}" placeholder="${escapeHtml(placeholder)}" value="${escapeHtml(defaultValue)}" style="width:100%;padding:8px;border-radius:4px;box-sizing:border-box;"/>
+                </div>
+                <footer>
+                    <button class="app-btn" id="__app_cancel">취소</button>
+                    <button class="app-btn primary" id="__app_ok">확인</button>
+                </footer>
+            </div>`;
+        document.body.appendChild(overlay);
+        const input = overlay.querySelector('#__app_input');
+        const ok = overlay.querySelector('#__app_ok');
+        const cancel = overlay.querySelector('#__app_cancel');
+        const close = (val) => { overlay.remove(); resolve(val); };
+        ok.addEventListener('click', () => close(input.value));
+        cancel.addEventListener('click', () => close(null));
+        overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(null); });
+        input.addEventListener('keyup', (e)=>{ if(e.key==='Enter') ok.click(); });
+        input.focus();
+        input.select();
+    });
+}
+
+function appToast(message, duration=2000) {
+    const node = document.createElement('div');
+    node.className = 'app-toast';
+    node.textContent = String(message || '');
+    document.body.appendChild(node);
+    setTimeout(()=>{ node.remove(); }, duration);
+}
+
 async function apiRequest(path, options = {}) {
     const url = `${API_BASE}${path}`;
     const config = { method: options.method || 'GET', headers: options.headers ? { ...options.headers } : {} };
@@ -389,7 +535,7 @@ async function apiRequest(path, options = {}) {
 
 function handleApiError(err, message) {
     console.error(err);
-    alert(`${message}\n(${err.message || err})`);
+    appAlert(`${message}\n(${err.message || err})`);
 }
 
 function replaceReagentInState(reagent) {
@@ -446,7 +592,7 @@ async function seedDefaultDataIfNeeded() {
             density,
             volume_ml,
             nfc_tag_uid: sample.nfc_tag_uid || null,
-            scale_device: sample.scale_device || null,
+            
             quantity: sample.quantity,
         };
         try {
@@ -635,7 +781,7 @@ async function fetchAutocomplete(query) {
 }
 
 function resetForm() {
-    ['edit-id','name','formula','cas','location','storage','expiry','hazard','disposal','quantity','density','nfcTag','scaleDevice'].forEach(id => {
+    ['edit-id','name','formula','cas','location','storage','expiry','hazard','disposal','quantity','density','nfcTag'].forEach(id => {
         const el = document.getElementById(id);
         if(el) el.value = '';
     });
@@ -669,21 +815,22 @@ async function saveChemical() {
     const quantityRaw = document.getElementById('quantity').value;
     const quantity = quantityRaw !== '' ? parseFloat(quantityRaw) : NaN;
     const densityRaw = document.getElementById('density').value;
+    const stateEl = document.getElementById('state');
+    const state = stateEl ? stateEl.value : '';
     const nfcTag = document.getElementById('nfcTag').value.trim();
-    const scaleDevice = document.getElementById('scaleDevice').value.trim();
 
     let density = null;
     if(densityRaw !== '') {
         const parsedDensity = parseFloat(densityRaw);
         if(Number.isNaN(parsedDensity) || parsedDensity <= 0) {
-            alert('밀도는 0보다 큰 숫자여야 합니다.');
+            appAlert('밀도는 0보다 큰 숫자여야 합니다.');
             return;
         }
         density = parsedDensity;
     }
 
     if(!name || !formula || !locationValue || Number.isNaN(quantity)) {
-        alert('필수 항목을 채워주세요: Name, Formula, Location, Quantity');
+        appAlert('필수 항목을 채워주세요: Name, Formula, Location, Quantity');
         return;
     }
 
@@ -693,14 +840,14 @@ async function saveChemical() {
         cas: cas || null,
         location: locationValue,
         storage: storage || null,
+        state: state || null,
         expiry: expiry || null,
         hazard: hazard || null,
         ghs: parseGhsInput(hazard),
         disposal: disposal || null,
         density,
-        volume_ml: density ? quantity / density : null,
+        volume_ml: (density && state === 'liquid') ? quantity / density : null,
         nfc_tag_uid: nfcTag || null,
-        scale_device: scaleDevice || null,
         quantity,
     };
 
@@ -725,41 +872,15 @@ async function saveChemical() {
         replaceReagentInState(saved);
         renderList();
         resetForm();
-        alert('저장이 완료되었습니다.');
+        // 저장 후 목록으로 이동
+        navigateTo('inventory');
+        appToast('저장이 완료되었습니다. 목록으로 이동합니다.');
     } catch (err) {
         handleApiError(err, '시약을 저장하지 못했습니다.');
     }
 }
 
-async function saveChemicalPurchaseBased(){
-  const name = document.getElementById('name').value.trim();
-  const tag_uid = document.getElementById('tag_uid').value.trim();
-  const state = document.getElementById('state').value;
-  const density = parseFloat(document.getElementById('density').value);
-  const purchased_ml = parseFloat(document.getElementById('purchased_ml').value);
-  const unit = document.getElementById('unit_default').value;
-
-  if(!name || !tag_uid || !state || !Number.isFinite(density) || !Number.isFinite(purchased_ml)){
-    alert('필수: 이름 / tag_uid / state / density / purchased_ml'); 
-    return;
-  }
-
-  const res = await apiPost('upsertByPurchase', {
-    name, tag_uid, state,
-    density_g_per_ml: density,
-    purchased_volume_ml: purchased_ml,
-    unit
-  });
-
-  if(!res.ok){ alert('등록 실패: ' + (res.error || 'unknown')); return; }
-
-  const goNow = confirm(`등록 완료!\n초기 순질량 ${res.initial_net_g.toFixed(2)} g\n\n지금 초기 무게 측정을 진행할까요?`);
-  if(goNow){
-    location.hash = `#/r/${encodeURIComponent(tag_uid)}?init=1`;
-  }else{
-    location.hash = '#/inventory';
-  }
-}
+// Removed legacy purchase-based registration flow
 
 
 function renderList() {
@@ -811,39 +932,28 @@ function renderList() {
         const densityDisplay = c.density !== null && c.density !== undefined
             ? escapeHtml(formatNumberDisplay(c.density, 4))
             : null;
-        const nfcDisplay = escapeHtml(c.nfc_tag_uid || '-');
-        const scaleDisplay = c.scale_device ? escapeHtml(c.scale_device) : null;
+    const nfcDisplay = escapeHtml(c.nfc_tag_uid || '-');
+        const nfcLinkPart = c.nfc_tag_uid
+            ? ` &nbsp; <a href="${location.pathname}#/r/${encodeURIComponent(c.nfc_tag_uid)}" target="_blank">열기</a>`
+            : '';
+        const stateDisplay = c.state ? escapeHtml(c.state) : '-';
 
         let metaHtml = `<div style="margin-top:6px;">
             (${escapeHtml(c.formula || '')}) &nbsp; CAS: ${escapeHtml(c.cas || 'N/A')} &nbsp; | &nbsp; 위치: ${escapeHtml(c.location || 'N/A')}
-            <br>보관: ${escapeHtml(c.storage || '-')} &nbsp; | &nbsp; 유통기한: ${escapeHtml(c.expiry || '-')} &nbsp; | &nbsp; 폐기: ${escapeHtml(c.disposal || '-')}
-            <br>Qty: <strong>${qtyDisplay}</strong> g`;
-        if(volumeDisplay && volumeDisplay !== '-') {
-            metaHtml += ` &nbsp; | &nbsp; Volume: ${volumeDisplay} mL`;
+            <br>보관: ${escapeHtml(c.storage || '-')} &nbsp; | &nbsp; 상태: ${stateDisplay} &nbsp; | &nbsp; 유통기한: ${escapeHtml(c.expiry || '-')} &nbsp; | &nbsp; 폐기: ${escapeHtml(c.disposal || '-')}
+            <br>수량: <strong>${qtyDisplay}</strong> g`;
+        if(c.state === 'liquid' && volumeDisplay && volumeDisplay !== '-') {
+            metaHtml += ` &nbsp; | &nbsp; 부피: ${volumeDisplay} mL`;
         }
         if(densityDisplay && densityDisplay !== '-') {
-            metaHtml += ` &nbsp; | &nbsp; Density: ${densityDisplay} g/mL`;
+            metaHtml += ` &nbsp; | &nbsp; 밀도: ${densityDisplay} g/mL`;
         }
-        metaHtml += `<br>NFC: ${nfcDisplay}`;
-        if(scaleDisplay) {
-            metaHtml += ` &nbsp; | &nbsp; Scale: ${scaleDisplay}`;
-        }
-        metaHtml += `<br>GHS:
-            </div>`;
+    metaHtml += `<br>NFC: ${nfcDisplay}${nfcLinkPart}`;
+        const ghsText = Array.isArray(c.ghs) && c.ghs.length ? c.ghs.join('; ') : '-';
+        metaHtml += ` &nbsp; | &nbsp; GHS: ${escapeHtml(ghsText)}</div>`;
         info.innerHTML = metaHtml;
         li.appendChild(info);
 
-        (Array.isArray(c.ghs) ? c.ghs : []).forEach(tag => {
-            const span = document.createElement('span');
-            span.textContent = tag;
-            span.style.fontWeight = '700';
-            span.style.marginLeft = '8px';
-            if(tag === 'Flammable') span.style.color = 'red';
-            else if(tag === 'Corrosive') span.style.color = 'orange';
-            else if(tag === 'Toxic') span.style.color = 'purple';
-            else if(tag === 'Oxidizer') span.style.color = 'limegreen';
-            li.appendChild(span);
-        });
 
         const btnContainer = document.createElement('div');
         btnContainer.style.marginTop = '8px';
@@ -865,7 +975,7 @@ function renderList() {
                     document.getElementById('quantity').value = c.quantity ?? '';
                     document.getElementById('density').value = c.density ?? '';
                     document.getElementById('nfcTag').value = c.nfc_tag_uid || '';
-                    document.getElementById('scaleDevice').value = c.scale_device || '';
+                    
                     navigateTo('add');
                 },
             },
@@ -917,7 +1027,8 @@ function renderList() {
 }
 
 async function deleteReagent(reagent) {
-    if(!confirm(`${reagent.name}을(를) 삭제하시겠습니까?`)) return;
+    const ok = await appConfirm(`${reagent.name}을(를) 삭제하시겠습니까?`);
+    if(!ok) return;
     try {
         await apiRequest(`/reagents/${encodeURIComponent(reagent.slug)}`, { method: 'DELETE' });
         removeReagentFromState(reagent.id);
@@ -946,35 +1057,210 @@ async function useWithScale(reagent) {
     const densityHint = hasDensity(reagent)
         ? `, 밀도 ${formatNumberDisplay(reagent.density, 4)} g/mL`
         : '';
-    const promptLabel = `${reagent.name}의 저울로 잰 남은 무게(g)를 입력하세요 (현재: ${formatNumberDisplay(before)} g${densityHint})`;
-    const massStr = prompt(promptLabel);
-    if(massStr === null) return;
-    const measuredMass = parseFloat(massStr);
-    if(Number.isNaN(measuredMass) || measuredMass < 0) {
-        alert('올바른 값을 입력해주세요 (0 이상의 숫자).');
+    
+    // 저울 자동 측정 모달 표시
+    showScaleModal(reagent, before, densityHint);
+}
+
+async function showScaleModal(reagent, currentWeight, densityHint) {
+    // 모달 생성
+    const modal = document.createElement('div');
+    modal.id = 'scale-modal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.8);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    `;
+    
+    modal.innerHTML = `
+        <div style="background: rgba(144,178,187,0.95); padding: 30px; border-radius: 12px; max-width: 500px; width: 90%;">
+            <h2 style="margin-top: 0; color: white;">${escapeHtml(reagent.name)} - 저울 측정</h2>
+            <p style="color: white;">현재 무게: ${formatNumberDisplay(currentWeight)} g${densityHint}</p>
+            
+            <div id="scale-port-selection" style="margin: 20px 0;">
+                <label style="color: white; display: block; margin-bottom: 8px;">시리얼 포트 선택:</label>
+                <select id="scale-port" style="width: 100%; padding: 8px; border-radius: 4px;">
+                    <option value="">포트 선택...</option>
+                </select>
+                <button onclick="loadScalePorts()" style="margin-top: 8px; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    포트 새로고침
+                </button>
+            </div>
+            
+            <div id="scale-weight-display" style="margin: 20px 0; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 8px; text-align: center;">
+                <div style="color: white; font-size: 14px; margin-bottom: 8px;">측정된 무게</div>
+                <div id="scale-reading" style="color: #00ff00; font-size: 36px; font-weight: bold;">-- g</div>
+                <div id="scale-status" style="color: #aaa; font-size: 12px; margin-top: 8px;">대기 중...</div>
+            </div>
+            
+            <div style="margin: 20px 0;">
+                <label style="color: white; display: block; margin-bottom: 8px;">메모 (선택사항):</label>
+                <input type="text" id="scale-note" placeholder="측정 메모..." style="width: 100%; padding: 8px; border-radius: 4px; box-sizing: border-box;">
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button id="btn-scale-read" 
+                    style="padding: 10px 20px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                    저울에서 읽기
+                </button>
+                <button id="btn-manual-input" 
+                    style="padding: 10px 20px; background: #ffc107; color: black; border: none; border-radius: 4px; cursor: pointer;">
+                    수동 입력
+                </button>
+                <button onclick="closeScaleModal()" 
+                    style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    취소
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // 이벤트 리스너 추가
+    document.getElementById('btn-scale-read').onclick = () => startScaleReading(reagent.slug, reagent.id);
+    document.getElementById('btn-manual-input').onclick = () => manualScaleInput(reagent.slug, currentWeight);
+    
+    // 포트 목록 로드
+    loadScalePorts();
+}
+
+async function loadScalePorts() {
+    try {
+        const response = await fetch(`${API_BASE}/scale/ports`);
+        if (!response.ok) throw new Error('Failed to load ports');
+        
+        const data = await response.json();
+        const select = document.getElementById('scale-port');
+        
+        select.innerHTML = '<option value="">포트 선택...</option>';
+        
+        if (data.ports && data.ports.length > 0) {
+            data.ports.forEach(port => {
+                const option = document.createElement('option');
+                option.value = port.device;
+                option.textContent = `${port.device} - ${port.description}`;
+                select.appendChild(option);
+            });
+        } else {
+            select.innerHTML = '<option value="">사용 가능한 포트 없음</option>';
+        }
+    } catch (err) {
+        console.error('Failed to load scale ports:', err);
+        const msg = (err && err.message === 'Failed to fetch')
+            ? '서버에 연결할 수 없습니다. 실행 중인지 확인하세요.'
+            : '포트 로드 실패';
+        document.getElementById('scale-status').textContent = msg;
+    }
+}
+
+async function startScaleReading(reagentSlug, reagentId) {
+    const port = document.getElementById('scale-port').value;
+    const note = document.getElementById('scale-note').value;
+    
+    if (!port) {
+        appAlert('시리얼 포트를 선택해주세요.');
         return;
     }
-    if(!Number.isNaN(before) && measuredMass > before) {
-        if(!confirm('입력한 값이 현재 무게보다 큽니다. 계속하시겠습니까?')) return;
-    }
-    if(!hasDensity(reagent)) {
-        const proceed = confirm('이 시약에 밀도가 설정되지 않았습니다. 무게는 저장되지만 mL 환산은 되지 않습니다. 계속하시겠습니까?');
-        if(!proceed) return;
-    }
+    
+    const statusEl = document.getElementById('scale-status');
+    const readingEl = document.getElementById('scale-reading');
+    
+    statusEl.textContent = '저울 연결 중...';
+    statusEl.style.color = '#ffc107';
+    
     try {
-        const updated = await apiRequest(`/reagents/${encodeURIComponent(reagent.slug)}/measurement`, {
+        // 저울에서 무게 읽고 시약 업데이트
+        const response = await fetch(
+            `${API_BASE}/reagents/${reagentId}/measure-weight?port=${encodeURIComponent(port)}&note=${encodeURIComponent(note || '')}`,
+            { method: 'POST' }
+        );
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Failed to read from scale');
+        }
+        
+        const result = await response.json();
+        
+        // 결과 표시
+        readingEl.textContent = `${formatNumberDisplay(result.measured_weight)} g`;
+        statusEl.textContent = '측정 완료!';
+        statusEl.style.color = '#00ff00';
+        
+        // 시약 데이터 업데이트
+        replaceReagentInState(result.reagent);
+        renderList();
+        
+        // 잠시 후 모달 닫기
+        setTimeout(async () => {
+            closeScaleModal();
+            const volumeDisplay = result.reagent.volume_ml !== null && result.reagent.volume_ml !== undefined
+                ? formatNumberDisplay(result.reagent.volume_ml)
+                : null;
+            await appAlert(`측정이 저장되었습니다.\n현재 무게: ${formatNumberDisplay(result.measured_weight)} g${volumeDisplay ? `\n부피: ${volumeDisplay} mL` : ''}\n변화량: ${result.delta > 0 ? '+' : ''}${formatNumberDisplay(result.delta)} g`);
+        }, 1500);
+        
+    } catch (err) {
+        console.error('Scale reading failed:', err);
+        const msg = (err && err.message === 'Failed to fetch')
+            ? '서버에 연결할 수 없습니다. 실행 중인지 확인하세요.'
+            : (err && err.message) ? err.message : '알 수 없는 오류';
+        statusEl.textContent = `오류: ${msg}`;
+        statusEl.style.color = '#ff0000';
+        readingEl.textContent = '-- g';
+    }
+}
+
+async function manualScaleInput(reagentSlug, currentWeight) {
+    const densityHint = '';
+    const promptLabel = `저울로 잰 무게(g)를 입력하세요 (현재: ${formatNumberDisplay(currentWeight)} g)`;
+    const massStr = await appPrompt(promptLabel, { inputType: 'number', placeholder: '0.00' });
+    if(massStr === null) return;
+    
+    const measuredMass = parseFloat(massStr);
+    if(Number.isNaN(measuredMass) || measuredMass < 0) {
+        appAlert('올바른 값을 입력해주세요 (0 이상의 숫자).');
+        return;
+    }
+    
+    if(!Number.isNaN(currentWeight) && measuredMass > currentWeight) {
+        const ok = await appConfirm('입력한 값이 현재 무게보다 큽니다. 계속하시겠습니까?');
+        if(!ok) return;
+    }
+    
+    const note = document.getElementById('scale-note')?.value || '';
+    
+    try {
+        const updated = await apiRequest(`/reagents/${encodeURIComponent(reagentSlug)}/measurement`, {
             method: 'POST',
-            body: { measured_mass: measuredMass, source: 'scale' },
+            body: { measured_mass: measuredMass, source: 'manual', note },
         });
         replaceReagentInState(updated);
         renderList();
+        closeScaleModal();
+        
         const massDisplay = formatNumberDisplay(updated.quantity);
         const volumeDisplay = updated.volume_ml !== null && updated.volume_ml !== undefined
             ? formatNumberDisplay(updated.volume_ml)
             : null;
-        alert(`측정이 저장되었습니다. 현재 무게: ${massDisplay} g${volumeDisplay ? `, 부피: ${volumeDisplay} mL` : ''}`);
+        await appAlert(`측정이 저장되었습니다. 현재 무게: ${massDisplay} g${volumeDisplay ? `, 부피: ${volumeDisplay} mL` : ''}`);
     } catch (err) {
         handleApiError(err, '측정값을 반영하지 못했습니다.');
+    }
+}
+
+function closeScaleModal() {
+    const modal = document.getElementById('scale-modal');
+    if (modal) {
+        modal.remove();
     }
 }
 
@@ -985,7 +1271,8 @@ async function triggerManualMeasurement(id) {
 }
 
 async function resetUsageStats() {
-    if(!confirm('모든 사용/폐기 통계를 초기화하시겠습니까?')) return;
+    const ok = await appConfirm('모든 사용/폐기 통계를 초기화하시겠습니까?');
+    if(!ok) return;
     try {
         await apiRequest('/reagents/reset-stats', { method: 'POST' });
         await refreshReagents();
@@ -997,10 +1284,10 @@ async function resetUsageStats() {
 
 function exportCSV() {
     if(!chemicals.length) {
-        alert('내보낼 데이터가 없습니다.');
+        appAlert('내보낼 데이터가 없습니다.');
         return;
     }
-    const rows = [['id','name','formula','cas','location','storage','expiry','quantity_g','volume_ml','density_g_ml','ghs','used','discarded','disposal','nfc_tag_uid','scale_device']];
+    const rows = [['id','name','formula','cas','location','storage','state','expiry','quantity_g','volume_ml','density_g_ml','ghs','used','discarded','disposal','nfc_tag_uid']];
     chemicals.forEach(c => {
         rows.push([
             c.id,
@@ -1009,6 +1296,7 @@ function exportCSV() {
             c.cas || '',
             c.location || '',
             c.storage || '',
+            c.state || '',
             c.expiry || '',
             c.quantity ?? 0,
             c.volume_ml ?? '',
@@ -1017,8 +1305,7 @@ function exportCSV() {
             c.used ?? 0,
             c.discarded ?? 0,
             c.disposal || '',
-            c.nfc_tag_uid || '',
-            c.scale_device || '',
+            c.nfc_tag_uid || ''
         ]);
     });
     const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
@@ -1035,7 +1322,7 @@ function exportCSV() {
 
 function autoDiscardReport() {
     if(!chemicals.length) {
-        alert('내보낼 데이터가 없습니다.');
+        appAlert('내보낼 데이터가 없습니다.');
         return;
     }
     const rows = [['name','discarded']];
@@ -1081,7 +1368,7 @@ async function renderUsageLogList(slug) {
 function showChemicalDetail(id) {
     const chem = chemicals.find(c => c.id == id);
     if(!chem) {
-        alert('시약을 찾을 수 없습니다.');
+        appAlert('시약을 찾을 수 없습니다.');
         return;
     }
     const detailDiv = document.getElementById('chemical-detail');
@@ -1093,14 +1380,15 @@ function showChemicalDetail(id) {
             </div>
 
             <div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:start">
-              <div>
-                                <p><strong>Quantity (g)</strong>: <span id="chem-qty">${escapeHtml(formatNumberDisplay(chem.quantity))}</span></p>
-                                <p><strong>Volume (mL)</strong>: ${escapeHtml(formatNumberDisplay(chem.volume_ml))}</p>
-                                <p><strong>Density (g/mL)</strong>: ${escapeHtml(formatNumberDisplay(chem.density, 4))}</p>
+                            <div>
+                                                                <p><strong>수량 (g)</strong>: <span id="chem-qty">${escapeHtml(formatNumberDisplay(chem.quantity))}</span></p>
+                                                                ${chem.state === 'liquid' && chem.volume_ml != null ? `<p><strong>부피 (mL)</strong>: ${escapeHtml(formatNumberDisplay(chem.volume_ml))}</p>` : ''}
+                                                                <p><strong>밀도 (g/mL)</strong>: ${escapeHtml(formatNumberDisplay(chem.density, 4))}</p>
                                 <p><strong>CAS</strong>: ${escapeHtml(chem.cas || '-')}</p>
                                 <p><strong>Formula</strong>: ${escapeHtml(chem.formula || '-')}</p>
                                 <p><strong>Location</strong>: ${escapeHtml(chem.location || '-')}</p>
-                                <p><strong>Storage</strong>: ${escapeHtml(chem.storage || '-')}</p>
+                                                                <p><strong>Storage</strong>: ${escapeHtml(chem.storage || '-')}</p>
+                                                                <p><strong>상태</strong>: ${escapeHtml(chem.state || '-')}</p>
                                 <p><strong>Expiry</strong>: ${escapeHtml(chem.expiry || '-')}</p>
               </div>
               <div>
@@ -1110,11 +1398,10 @@ function showChemicalDetail(id) {
                 <p><strong>Discarded</strong>: ${chem.discarded ?? 0}</p>
                 <p><strong>GHS</strong>: ${
                     Array.isArray(chem.ghs) && chem.ghs.length
-                        ? chem.ghs.map(g => `<span class="tag">${escapeHtml(g)}</span>`).join(' ')
+                        ? escapeHtml(chem.ghs.join('; '))
                         : '-'
                 }</p>
-                                <p><strong>NFC Tag</strong>: ${escapeHtml(chem.nfc_tag_uid || '-')}</p>
-                                <p><strong>Scale Device</strong>: ${escapeHtml(chem.scale_device || '-')}</p>
+                                                                <p><strong>NFC Tag</strong>: ${escapeHtml(chem.nfc_tag_uid || '-')}</p>
               </div>
             </div>
 
@@ -1137,11 +1424,126 @@ async function copyReagentLink(slugOrEncoded) {
     const url = `${location.origin}${location.pathname}#/reagents/${encodeURIComponent(slug)}`;
     try {
         await navigator.clipboard.writeText(url);
-        alert('링크가 복사되었습니다!');
+        appToast('링크가 복사되었습니다!');
     } catch (err) {
         console.warn('Clipboard write failed', err);
-        prompt('복사 실패. 아래 링크를 수동 복사하세요:', url);
+        await appPrompt('복사 실패. 아래 링크를 수동 복사하세요:', { defaultValue: url });
     }
+}
+
+// NFC 스티커 URL 생성 및 복사 유틸
+function getStickerOrigin() {
+    try {
+        const v = localStorage.getItem(STICKER_HOST_KEY);
+        if(v && /^https?:\/\//i.test(v)) return v.replace(/\/$/, '');
+    } catch (e) { /* ignore */ }
+    return location.origin; // 기본은 현재 접속 호스트
+}
+
+function setStickerOrigin(origin) {
+    if(!origin) return;
+    try {
+        localStorage.setItem(STICKER_HOST_KEY, origin.replace(/\/$/, ''));
+    } catch (e) { /* ignore */ }
+}
+
+function generateNfcUrl(uid) {
+    if(!uid) return '';
+    const origin = getStickerOrigin();
+    return `${origin}${location.pathname}#/r/${encodeURIComponent(uid)}`;
+}
+
+async function copyNfcLink(uid) {
+    const url = generateNfcUrl(uid);
+    if(!url) return;
+    try {
+        await navigator.clipboard.writeText(url);
+        appToast('NFC 링크가 복사되었습니다!');
+    } catch (err) {
+        console.warn('Clipboard write failed', err);
+        await appPrompt('복사 실패. 아래 링크를 수동 복사하세요:', { defaultValue: url });
+    }
+}
+
+// 헤더에 NFC UID 빠른 이동 입력창 추가
+function setupHeaderNfcJump() {
+    const container = document.querySelector('.topbar-right');
+    if(!container) return;
+    if(container.querySelector('#nfc-jump-input')) return; // 중복 방지
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.id = 'nfc-jump-input';
+    input.placeholder = 'NFC UID';
+    input.style.padding = '6px';
+    input.style.minWidth = '140px';
+
+    const btn = document.createElement('button');
+    btn.className = 'small';
+    btn.textContent = 'UID로 이동';
+    btn.style.marginLeft = '4px';
+    btn.onclick = async () => {
+        const uid = input.value.trim();
+        if(!uid) { await appAlert('UID를 입력하세요.'); return; }
+        navigateTo('r', uid);
+    };
+
+    container.appendChild(input);
+    container.appendChild(btn);
+
+    // 스티커 호스트 설정 UI
+    const hostInput = document.createElement('input');
+    hostInput.type = 'text';
+    hostInput.id = 'sticker-host-input';
+    hostInput.placeholder = '스티커 호스트 (예: http://LAB-NT.local:8000)';
+    hostInput.style.padding = '6px';
+    hostInput.style.minWidth = '220px';
+    hostInput.value = getStickerOrigin();
+
+    const hostBtn = document.createElement('button');
+    hostBtn.className = 'small';
+    hostBtn.textContent = '스티커 호스트 저장';
+    hostBtn.style.marginLeft = '4px';
+    hostBtn.onclick = async () => {
+        const val = hostInput.value.trim();
+        if(!/^https?:\/\//i.test(val)) { await appAlert('http:// 또는 https:// 로 시작하는 호스트를 입력하세요.'); return; }
+        setStickerOrigin(val);
+        appToast('스티커 호스트가 저장되었습니다. 이제 스티커 URL은 이 호스트를 기준으로 생성됩니다.');
+        // 미리보기 갱신
+        setupNfcUrlPreview();
+    };
+
+    container.appendChild(hostInput);
+    container.appendChild(hostBtn);
+}
+
+// 추가/수정 폼의 NFC 입력 옆에 스티커 URL 미리보기 표시
+function setupNfcUrlPreview() {
+    const nfcInput = document.getElementById('nfcTag');
+    if(!nfcInput) return;
+
+    let preview = document.getElementById('nfc-url-preview');
+    if(!preview) {
+        preview = document.createElement('div');
+        preview.id = 'nfc-url-preview';
+        preview.style.fontSize = '0.9rem';
+        preview.style.opacity = '0.85';
+        preview.style.marginTop = '6px';
+        nfcInput.parentElement && nfcInput.parentElement.appendChild(preview);
+    }
+
+    const update = () => {
+        const uid = nfcInput.value.trim();
+        if(uid) {
+            const url = generateNfcUrl(uid);
+            preview.innerHTML = `스티커 URL: <a href="${url}" target="_blank">${url}</a> ` +
+                `<button type="button" class="small" onclick="copyNfcLink('${uid.replace(/'/g, "&#39;")}')">복사</button>`;
+        } else {
+            preview.textContent = '스티커 URL: (NFC Tag UID 입력 시 자동 생성)';
+        }
+    };
+    nfcInput.addEventListener('input', update);
+    update();
 }
 
 function parseHash() {
@@ -1167,11 +1569,10 @@ function handleHashRoute() {
     return;
   }
     // 정적 섹션 라우팅
-    const pages = new Set(['about','add','discard','inventory','usage','auto-db']);
+    const pages = new Set(['about','add','discard','inventory','usage']);
     if(pages.has(route)) {
         showPage(route);
         if(route === 'inventory') renderList();
-        if(route === 'auto-db') renderLocalDb();
         return;
     }
     if(route === 'reagents' && param) {
@@ -1189,39 +1590,101 @@ function handleHashRoute() {
 }
 
 // NFC 페이지 렌더 함수
-function renderScanPage(tag_uid, isInit){
-  const about = document.getElementById('about'); // 예시로 about 페이지를 사용
-  about.innerHTML = `
-    <h2>NFC: ${tag_uid}</h2>
-    <div id="scan-status">${isInit ? '초기 무게 측정 대기중… (가득 찬 상태로 올려 주세요)' : '무게 측정 대기중…'}</div>
-    <div id="scan-info" style="margin-top:10px"></div>
-    <div id="scan-logs" style="margin-top:10px"></div>
-  `;
+async function renderScanPage(tag_uid, isInit){
+    const about = document.getElementById('about');
+    about.innerHTML = `
+        <h2>NFC: ${escapeHtml(tag_uid)}</h2>
+        <div id="scan-status">${isInit ? '초기 무게 측정 대기중… (가득 찬 상태로 올려 주세요)' : '무게 측정 대기중…'}</div>
+        <div id="scan-info" style="margin-top:10px"></div>
+        <div id="scan-actions" style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;"></div>
+    `;
 
-  // 큐 등록 (시그널용)
-  apiPost('enqueue', { tag_uid }).catch(()=>{});
+    async function loadByTag(){
+        try {
+            const reagent = await apiRequest(`/reagents/by-nfc/${encodeURIComponent(tag_uid)}`);
+            // 상태 영역
+            const qty = typeof reagent.quantity === 'number' ? `${formatNumberDisplay(reagent.quantity)} g` : '-';
+            const vol = (reagent.state === 'liquid' && reagent.volume_ml != null) ? `, ${formatNumberDisplay(reagent.volume_ml)} mL` : '';
+            const info = `
+                <div>
+                    <strong>${escapeHtml(reagent.name)}</strong> (${escapeHtml(reagent.formula || '-')})<br/>
+                    위치: ${escapeHtml(reagent.location || '-')}
+                    &nbsp;|&nbsp; 상태: ${escapeHtml(reagent.state || '-')}
+                    &nbsp;|&nbsp; 밀도: ${escapeHtml(formatNumberDisplay(reagent.density,4))}
+                    <br/>현재 잔량: ${qty}${vol}
+                </div>`;
+            document.getElementById('scan-info').innerHTML = info;
 
-  async function refresh(){
-    const info = await apiPost('getReagent', { tag_uid });
-    if(info.ok){
-      const d = info.reagent;
-      const qty = (d.current_ml!=null)
-        ? `${d.current_ml.toFixed(2)} ml`
-        : `${d.current_net_g.toFixed(2)} g`;
-      document.getElementById('scan-info').textContent = `${d.name} 현재 잔량: ${qty}`;
+            // 액션 영역
+            const actions = document.getElementById('scan-actions');
+            actions.innerHTML = '';
+
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.step = '0.01';
+            input.placeholder = '측정 무게(g) 수동 입력';
+            input.style.padding = '6px';
+            input.id = 'nfc-manual-mass';
+
+            const noteInput = document.createElement('input');
+            noteInput.type = 'text';
+            noteInput.placeholder = '메모(선택)';
+            noteInput.style.padding = '6px';
+            noteInput.id = 'nfc-manual-note';
+
+            const btnSave = document.createElement('button');
+            btnSave.className = 'action-btn use';
+            btnSave.textContent = '수동 저장';
+            btnSave.onclick = async () => {
+                const v = parseFloat(document.getElementById('nfc-manual-mass').value);
+                const note = document.getElementById('nfc-manual-note').value.trim();
+                if(Number.isNaN(v) || v < 0){ await appAlert('올바른 무게를 입력해주세요 (0 이상).'); return; }
+                try {
+                    const updated = await apiRequest('/measurements/weight', {
+                        method: 'POST',
+                        body: { nfc_tag_uid: tag_uid, measured_mass: v, source: 'nfc-manual', note }
+                    });
+                    replaceReagentInState(updated);
+                    renderList();
+                    await loadByTag();
+                    appToast('측정값이 저장되었습니다.');
+                } catch (err) {
+                    handleApiError(err, '저장 실패');
+                }
+            };
+
+            const btnScale = document.createElement('button');
+            btnScale.className = 'action-btn scale';
+            btnScale.textContent = '저울에서 읽기';
+            btnScale.onclick = () => useWithScale(reagent);
+
+            const btnDetail = document.createElement('button');
+            btnDetail.className = 'small';
+            btnDetail.textContent = '상세 보기';
+            btnDetail.onclick = () => navigateTo('reagents', reagent.slug);
+
+            const btnBack = document.createElement('button');
+            btnBack.className = 'small';
+            btnBack.textContent = '목록으로';
+            btnBack.onclick = () => navigateTo('inventory');
+
+            actions.appendChild(input);
+            actions.appendChild(noteInput);
+            actions.appendChild(btnSave);
+            actions.appendChild(btnScale);
+            actions.appendChild(btnDetail);
+            actions.appendChild(btnBack);
+
+            document.getElementById('scan-status').textContent = '측정 대기/진행 중…';
+        } catch (err) {
+            document.getElementById('scan-info').textContent = '해당 NFC 태그로 등록된 시약을 찾을 수 없습니다.';
+            document.getElementById('scan-status').textContent = '미등록 태그';
+        }
     }
-    const logs = await apiPost('getLogs', { tag_uid, limit: 1 });
-    if(logs.ok && logs.logs[0]){
-      const last = logs.logs[0];
-      document.getElementById('scan-status').textContent =
-        (last.note === 'INIT')
-        ? '초기 무게 측정 완료 ✅'
-        : (isInit ? '초기 측정 대기/진행 중…' : '측정 대기/진행 중…');
-    }
-  }
-  refresh();
-  clearInterval(window.__scanTimer);
-  window.__scanTimer = setInterval(refresh, 2000);
+
+    await loadByTag();
+    clearInterval(window.__scanTimer);
+    window.__scanTimer = setInterval(loadByTag, 5000);
 }
 
 
@@ -1234,26 +1697,26 @@ document.querySelectorAll('nav button').forEach(btn => btn.addEventListener('cli
     setTimeout(renderList, 120);
 }));
 
-function signup() {
-    const username = prompt('사용할 Username 입력:');
-    const password = prompt('사용할 Password 입력:');
-    if(!username || !password) return alert('아이디와 비밀번호를 입력해주세요.');
+async function signup() {
+    const username = await appPrompt('사용할 Username 입력:');
+    const password = await appPrompt('사용할 Password 입력:', { inputType: 'password' });
+    if(!username || !password) { appAlert('아이디와 비밀번호를 입력해주세요.'); return; }
     let users = [];
     try {
         users = JSON.parse(localStorage.getItem(USER_KEY) || '[]');
     } catch (err) {
         console.warn('LocalStorage unavailable', err);
     }
-    if(users.some(u => u.username === username)) return alert('이미 존재하는 아이디입니다.');
+    if(users.some(u => u.username === username)) { appAlert('이미 존재하는 아이디입니다.'); return; }
     users.push({ username, password });
     localStorage.setItem(USER_KEY, JSON.stringify(users));
-    alert('회원가입 완료! 로그인해주세요.');
+    appToast('회원가입 완료! 로그인해주세요.');
 }
 
 async function login() {
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
-    if(!username || !password) return alert('아이디와 비밀번호를 입력해주세요.');
+    if(!username || !password) { await appAlert('아이디와 비밀번호를 입력해주세요.'); return; }
     let users = [];
     try {
         users = JSON.parse(localStorage.getItem(USER_KEY) || '[]');
@@ -1269,7 +1732,7 @@ async function login() {
         document.getElementById('logoutBtn').style.display = 'inline-block';
         await initApp();
     } else {
-        alert('아이디 또는 비밀번호가 틀립니다.');
+        await appAlert('아이디 또는 비밀번호가 틀립니다.');
     }
 }
 
@@ -1289,6 +1752,8 @@ async function initApp() {
     renderList();
     bindAutocomplete();
     bindLocationAutocomplete();
+    setupHeaderNfcJump();
+    setupNfcUrlPreview();
     handleHashRoute();
 }
 
@@ -1324,9 +1789,10 @@ async function renderLocalDb() {
             del.className = 'action-btn delete';
             del.style.marginLeft = '8px';
             del.onclick = async () => {
-                if(!confirm(`${item.name}을(를) 삭제하시겠습니까?`)) return;
+                const ok = await appConfirm(`${item.name}을(를) 삭제하시겠습니까?`);
+                if(!ok) return;
                 const resp = await fetch(`${API_BASE}/autocomplete/local-db/${encodeURIComponent(item.name)}`, { method: 'DELETE' });
-                if(!resp.ok) { alert('삭제 실패'); return; }
+                if(!resp.ok) { await appAlert('삭제 실패'); return; }
                 renderLocalDb();
             };
             li.appendChild(del);
@@ -1342,19 +1808,169 @@ async function addLocalAutoItem() {
     const name = document.getElementById('auto-name').value.trim();
     const formula = document.getElementById('auto-formula').value.trim();
     const synRaw = document.getElementById('auto-synonyms').value.trim();
-    if(!name || !formula) { alert('Name과 Formula는 필수입니다.'); return; }
+    if(!name || !formula) { await appAlert('Name과 Formula는 필수입니다.'); return; }
     const synonyms = synRaw ? synRaw.split(';').map(s=>s.trim()).filter(Boolean) : [];
     const res = await fetch(`${API_BASE}/autocomplete/local-db`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, formula, synonyms })
     });
-    if(res.status === 409) { alert('이미 존재하는 이름입니다.'); return; }
-    if(!res.ok) { alert('추가 실패'); return; }
+    if(res.status === 409) { await appAlert('이미 존재하는 이름입니다.'); return; }
+    if(!res.ok) { await appAlert('추가 실패'); return; }
     document.getElementById('auto-name').value = '';
     document.getElementById('auto-formula').value = '';
     document.getElementById('auto-synonyms').value = '';
     renderLocalDb();
+}
+
+// ============= Scale CSV Upload Functions =============
+
+async function uploadScaleCsvFile() {
+    const fileInput = document.getElementById('csvFileInput');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        await appAlert('CSV 파일을 선택해주세요.');
+        return;
+    }
+    
+    if (!file.name.endsWith('.csv')) {
+        await appAlert('CSV 파일만 업로드할 수 있습니다.');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+        const response = await fetch(`${API_BASE}/scale/upload-measurements`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || '업로드 실패');
+        }
+        
+        const result = await response.json();
+        
+        // 결과 표시
+        const resultDiv = document.getElementById('csv-upload-result');
+        const contentDiv = document.getElementById('csv-result-content');
+        
+        let html = `
+            <p><strong>✅ ${result.message}</strong></p>
+            <p>총 ${result.results.total}건 중 ${result.results.success}건 성공, ${result.results.failed}건 실패</p>
+        `;
+        
+        if (result.results.updates.length > 0) {
+            html += '<h5>업데이트된 시약:</h5><ul style="list-style:disc; padding-left:20px;">';
+            result.results.updates.forEach(update => {
+                const deltaSign = update.delta >= 0 ? '+' : '';
+                html += `<li>
+                    <strong>${escapeHtml(update.reagent_name)}</strong> (${escapeHtml(update.identifier)})<br>
+                    ${update.previous_quantity.toFixed(2)}g → ${update.new_quantity.toFixed(2)}g 
+                    (${deltaSign}${update.delta.toFixed(2)}g)
+                </li>`;
+            });
+            html += '</ul>';
+        }
+        
+        if (result.results.errors.length > 0) {
+            html += '<h5 style="color:#ff6b6b;">에러 목록:</h5><ul style="list-style:disc; padding-left:20px;">';
+            result.results.errors.forEach(error => {
+                html += `<li style="color:#ff6b6b;">
+                    행 ${error.row}: ${escapeHtml(error.error)}
+                </li>`;
+            });
+            html += '</ul>';
+        }
+        
+        contentDiv.innerHTML = html;
+        resultDiv.style.display = 'block';
+        
+        // 시약 목록 새로고침
+        await refreshReagents();
+        
+        // 파일 입력 초기화
+        fileInput.value = '';
+        
+    } catch (error) {
+        await appAlert(`CSV 업로드 실패: ${error.message}`);
+        console.error(error);
+    }
+}
+
+async function saveQuickMeasurement() {
+    const nfcUid = document.getElementById('quick-nfc').value.trim();
+    const weight = parseFloat(document.getElementById('quick-weight').value);
+    const note = document.getElementById('quick-note').value.trim();
+    const operator = document.getElementById('quick-operator').value.trim();
+    
+    if (!weight || weight < 0) {
+        await appAlert('올바른 무게를 입력해주세요 (0 이상).');
+        return;
+    }
+    
+    if (!nfcUid) {
+        await appAlert('NFC Tag UID를 입력해주세요.');
+        return;
+    }
+    
+    try {
+        const params = new URLSearchParams({
+            measured_weight: weight.toString()
+        });
+        
+        if (nfcUid) params.append('nfc_tag_uid', nfcUid);
+        if (note) params.append('note', note);
+        if (operator) params.append('operator', operator);
+        
+        const response = await fetch(`${API_BASE}/scale/save-measurement?${params.toString()}`, {
+            method: 'POST'
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || '저장 실패');
+        }
+        
+        const result = await response.json();
+        
+      await appAlert(`✅ 측정값이 CSV 파일에 저장되었습니다!\n\n` +
+              `NFC: ${result.data.nfc_tag_uid}\n` +
+              `무게: ${result.data.measured_weight}g\n` +
+              `시간: ${new Date(result.data.timestamp).toLocaleString()}\n\n` +
+              `파일 위치: ${result.file}`);
+        
+        // 입력 필드 초기화
+        document.getElementById('quick-nfc').value = '';
+        document.getElementById('quick-weight').value = '';
+        document.getElementById('quick-note').value = '';
+        // operator는 유지
+        
+    } catch (error) {
+        await appAlert(`저장 실패: ${error.message}`);
+        console.error(error);
+    }
+}
+
+function downloadSampleCsv() {
+    const csvContent = `nfc_tag_uid,reagent_id,reagent_name,measured_weight,timestamp,note,operator
+NFC-ACE-001,1,아세톤,485.5,2025-11-05T14:30:00,정기측정,김철수
+NFC-ETH-001,2,Ethanol,920.3,2025-11-05T14:31:00,사용후측정,김철수
+,3,Methanol,275.8,2025-11-05T14:32:00,,이영희`;
+    
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'scale_measurements_sample.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
 }
 </script>
 </body>

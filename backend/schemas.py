@@ -27,6 +27,7 @@ class ReagentBase(BaseModel):
     cas: Optional[str] = Field(default=None, max_length=64)
     location: str = Field(..., max_length=255)
     storage: Optional[str] = Field(default=None, max_length=255)
+    state: Optional[str] = Field(default=None, description="상태 (liquid|solid)")
     expiry: Optional[date] = None
     hazard: Optional[str] = Field(default=None, max_length=255)
     ghs: List[str] = Field(default_factory=list)
@@ -34,7 +35,6 @@ class ReagentBase(BaseModel):
     density: Optional[float] = Field(default=None, gt=0)
     volume_ml: Optional[float] = Field(default=None, ge=0)
     nfc_tag_uid: Optional[str] = Field(default=None, max_length=128)
-    scale_device: Optional[str] = Field(default=None, max_length=128)
     quantity: float = 0.0
     used: float = 0.0
     discarded: float = 0.0
@@ -50,6 +50,7 @@ class ReagentUpdate(BaseModel):
     cas: Optional[str] = None
     location: Optional[str] = None
     storage: Optional[str] = None
+    state: Optional[str] = Field(default=None, description="상태 (liquid|solid)")
     expiry: Optional[date] = None
     hazard: Optional[str] = None
     ghs: Optional[List[str]] = None
@@ -57,7 +58,6 @@ class ReagentUpdate(BaseModel):
     density: Optional[float] = Field(default=None, gt=0)
     volume_ml: Optional[float] = Field(default=None, ge=0)
     nfc_tag_uid: Optional[str] = Field(default=None, max_length=128)
-    scale_device: Optional[str] = Field(default=None, max_length=128)
     quantity: Optional[float] = None
     used: Optional[float] = None
     discarded: Optional[float] = None
