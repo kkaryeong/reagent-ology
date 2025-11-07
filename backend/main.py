@@ -211,7 +211,7 @@ def create_reagent(payload: schemas.ReagentCreate) -> schemas.ReagentOut:
         "cas": payload.cas,
         "location": payload.location,
         "storage": payload.storage,
-    "state": payload.state,
+        "state": payload.state,
         "expiry": payload.expiry.isoformat() if payload.expiry else None,
         "hazard": payload.hazard,
         "ghs": payload.ghs,
@@ -219,6 +219,8 @@ def create_reagent(payload: schemas.ReagentCreate) -> schemas.ReagentOut:
         "density": payload.density,
         "volume_ml": volume_ml,
         "nfc_tag_uid": normalize_optional_string(payload.nfc_tag_uid),
+        "metallicity": payload.metallicity,
+        "element_group": payload.element_group,
         "quantity": payload.quantity,
         "used": payload.used,
         "discarded": payload.discarded,
@@ -269,6 +271,10 @@ def update_reagent(
         update_data["ghs"] = payload.ghs
     if payload.disposal is not None:
         update_data["disposal"] = payload.disposal
+    if payload.metallicity is not None:
+        update_data["metallicity"] = payload.metallicity
+    if payload.element_group is not None:
+        update_data["element_group"] = payload.element_group
     
     # 밀도 업데이트 시 부피 재계산 (액체에 한함)
     if payload.density is not None:

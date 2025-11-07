@@ -38,6 +38,9 @@ class ReagentBase(BaseModel):
     quantity: float = 0.0
     used: float = 0.0
     discarded: float = 0.0
+    # 추가 분류 필드
+    metallicity: Optional[str] = Field(default=None, description="금속/비금속/준금속 등")
+    element_group: Optional[str] = Field(default=None, description="주기율표 족 (예: '1','2','17' 등)")
 
 
 class ReagentCreate(ReagentBase):
@@ -61,6 +64,8 @@ class ReagentUpdate(BaseModel):
     quantity: Optional[float] = None
     used: Optional[float] = None
     discarded: Optional[float] = None
+    metallicity: Optional[str] = None
+    element_group: Optional[str] = None
 
 
 class ReagentOut(ReagentBase):

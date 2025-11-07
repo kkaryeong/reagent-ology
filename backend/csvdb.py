@@ -44,6 +44,8 @@ class Reagent:
     volume_ml: Optional[float] = None
     nfc_tag_uid: Optional[str] = None
     scale_device: Optional[str] = None
+    metallicity: Optional[str] = None  # 금속/비금속/준금속
+    element_group: Optional[str] = None  # '1','2','17' 등
     used: float = 0.0
     discarded: float = 0.0
     created_at: Optional[str] = None  # ISO format
@@ -113,6 +115,8 @@ def _read_reagents() -> List[Reagent]:
                 volume_ml=volume_ml,
                 nfc_tag_uid=row.get("nfc_tag_uid") or None,
                 scale_device=row.get("scale_device") or None,
+                metallicity=row.get("metallicity") or None,
+                element_group=row.get("element_group") or None,
                 quantity=float(row["quantity"]),
                 used=float(row.get("used") or 0),
                 discarded=float(row.get("discarded") or 0),
@@ -129,7 +133,7 @@ def _write_reagents(items: List[Reagent]) -> None:
         fieldnames = [
             "id", "slug", "name", "formula", "cas", "location", "storage", "state", "expiry",
             "hazard", "ghs", "disposal", "density", "volume_ml", "nfc_tag_uid",
-            "scale_device", "quantity", "used", "discarded", "created_at", "updated_at"
+            "scale_device", "metallicity", "element_group", "quantity", "used", "discarded", "created_at", "updated_at"
         ]
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
@@ -152,6 +156,8 @@ def _write_reagents(items: List[Reagent]) -> None:
                 "volume_ml": f"{r.volume_ml}" if r.volume_ml is not None else "",
                 "nfc_tag_uid": r.nfc_tag_uid or "",
                 "scale_device": r.scale_device or "",
+                "metallicity": r.metallicity or "",
+                "element_group": r.element_group or "",
                 "quantity": r.quantity,
                 "used": r.used,
                 "discarded": r.discarded,
@@ -334,6 +340,10 @@ def update_reagent(identifier: str, data: Dict[str, Any]) -> Optional[Dict[str, 
             reagent.nfc_tag_uid = data["nfc_tag_uid"]
         if "scale_device" in data:
             reagent.scale_device = data["scale_device"]
+        if "metallicity" in data:
+            reagent.metallicity = data["metallicity"]
+        if "element_group" in data:
+            reagent.element_group = data["element_group"]
         if "quantity" in data:
             reagent.quantity = data["quantity"]
             changed_quantity = True
@@ -449,6 +459,8 @@ def reagent_to_dict(r: Reagent) -> Dict[str, Any]:
         "density": r.density,
         "volume_ml": r.volume_ml,
         "nfc_tag_uid": r.nfc_tag_uid,
+        "metallicity": r.metallicity,
+        "element_group": r.element_group,
         "quantity": r.quantity,
         "used": r.used,
         "discarded": r.discarded,

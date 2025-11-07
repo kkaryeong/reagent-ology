@@ -198,6 +198,21 @@
                 <option value="solid">solid</option>
                 </select>
 
+                <!-- 추가 분류: 금속성/족 -->
+                <select id="metallicity">
+                    <option value="">금속성</option>
+                    <option value="metal">금속</option>
+                    <option value="nonmetal">비금속</option>
+                    <option value="metalloid">준금속</option>
+                </select>
+                <select id="elementGroup">
+                    <option value="">족</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="17">17</option>
+                    <option value="other">기타</option>
+                </select>
+
                 <button onclick="saveChemical()" class="action-btn small">Save</button>
                 <button onclick="resetForm()" class="small">Clear</button>
             </div>
@@ -227,6 +242,8 @@
                     <option value="id">정렬: 등록순</option>
                     <option value="name">이름</option>
                     <option value="quantity">수량(내림)</option>
+                    <option value="metallicity">금속성</option>
+                    <option value="group">족</option>
                 </select>
                 <button onclick="exportCSV()" class="small">CSV 내보내기</button>
             </div>
@@ -823,6 +840,8 @@ async function saveChemical() {
     const stateEl = document.getElementById('state');
     const state = stateEl ? stateEl.value : '';
     const nfcTag = document.getElementById('nfcTag').value.trim();
+    const metallicity = (document.getElementById('metallicity')?.value || '').trim() || null;
+    const elementGroup = (document.getElementById('elementGroup')?.value || '').trim() || null;
 
     let density = null;
     if(densityRaw !== '') {
@@ -853,6 +872,8 @@ async function saveChemical() {
         density,
         volume_ml: (density && state === 'liquid') ? quantity / density : null,
         nfc_tag_uid: nfcTag || null,
+        metallicity,
+        element_group: elementGroup,
         quantity,
     };
 
@@ -915,6 +936,15 @@ function renderList() {
         filtered.sort((a,b) => (a.name || '').localeCompare(b.name || ''));
     } else if(sortBy === 'quantity') {
         filtered.sort((a,b) => (b.quantity || 0) - (a.quantity || 0));
+    } else if(sortBy === 'metallicity') {
+        filtered.sort((a,b) => (a.metallicity || '').localeCompare(b.metallicity || ''));
+    } else if(sortBy === 'group') {
+        const toNum = v => {
+            if(v === 'other' || v === '' || v == null) return 9999;
+            const n = Number(v);
+            return Number.isFinite(n) ? n : 9999;
+        };
+        filtered.sort((a,b) => toNum(a.element_group) - toNum(b.element_group));
     } else {
         filtered.sort((a,b) => (a.id || 0) - (b.id || 0));
     }
@@ -980,6 +1010,8 @@ function renderList() {
                     document.getElementById('quantity').value = c.quantity ?? '';
                     document.getElementById('density').value = c.density ?? '';
                     document.getElementById('nfcTag').value = c.nfc_tag_uid || '';
+                    if(document.getElementById('metallicity')) document.getElementById('metallicity').value = c.metallicity || '';
+                    if(document.getElementById('elementGroup')) document.getElementById('elementGroup').value = c.element_group || '';
                     
                     navigateTo('add');
                 },
@@ -1292,7 +1324,7 @@ function exportCSV() {
         appAlert('내보낼 데이터가 없습니다.');
         return;
     }
-    const rows = [['id','name','formula','cas','location','storage','state','expiry','quantity_g','volume_ml','density_g_ml','ghs','used','discarded','disposal','nfc_tag_uid']];
+    const rows = [['id','name','formula','cas','location','storage','state','expiry','quantity_g','volume_ml','density_g_ml','ghs','used','discarded','disposal','nfc_tag_uid','metallicity','element_group']];
     chemicals.forEach(c => {
         rows.push([
             c.id,
@@ -1310,7 +1342,9 @@ function exportCSV() {
             c.used ?? 0,
             c.discarded ?? 0,
             c.disposal || '',
-            c.nfc_tag_uid || ''
+            c.nfc_tag_uid || '',
+            c.metallicity || '',
+            c.element_group || ''
         ]);
     });
     const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
@@ -1349,17 +1383,34 @@ async function renderUsageLogList(slug) {
     if(!box) return;
     box.innerHTML = '<li>불러오는 중...</li>';
     try {
-        const logs = await apiRequest(`/reagents/${encodeURIComponent(slug)}/usage`);
+        let logs = await apiRequest(`/reagents/${encodeURIComponent(slug)}/usage`);
         if(!logs || !logs.length) {
             box.innerHTML = '<li class="empty">기록 없음</li>';
             return;
         }
+        // 정렬 옵션: 기본 최신순, 또는 USE/DISCARD/SCALE 우선 정렬
+        const sortSel = document.getElementById('usage-sort');
+        const sortMode = (sortSel?.value || 'time').toLowerCase();
+        const ts = x => new Date(x).getTime();
+        if(sortMode === 'use' || sortMode === 'discard' || sortMode === 'scale') {
+            logs = [...logs].sort((a,b) => {
+                const pa = (String(a.source||'').toLowerCase() === sortMode) ? 0 : 1;
+                const pb = (String(b.source||'').toLowerCase() === sortMode) ? 0 : 1;
+                if(pa !== pb) return pa - pb;
+                return ts(b.created_at) - ts(a.created_at);
+            });
+        } else {
+            logs = [...logs].sort((a,b) => ts(b.created_at) - ts(a.created_at));
+        }
+
         box.innerHTML = logs.map(log => {
             const when = new Date(log.created_at).toLocaleString();
             const sign = log.delta > 0 ? '+' : '';
+            const deltaStr = `${sign}${formatNumberDisplay(log.delta, 2)} g`;
+            const qtyStr = `${formatNumberDisplay(log.new_qty, 2)} g`;
             return `<li>
                 <span>${escapeHtml(when)}</span>
-                &nbsp; <strong>${sign}${log.delta}</strong> → ${log.new_qty}
+                &nbsp; <strong>${deltaStr}</strong> → ${qtyStr}
                 &nbsp; <em style="opacity:.7">${escapeHtml(log.source || '')}</em>
                 ${log.note ? `&nbsp; <span>${escapeHtml(log.note)}</span>` : ''}
             </li>`;
@@ -1416,8 +1467,17 @@ function showChemicalDetail(id) {
               <button class="small" onclick="copyReagentLink('${encodeURIComponent(chem.slug)}')">링크 복사</button>
             </div>
 
-            <h3 style="margin-top:16px">사용 기록</h3>
-            <ul id="usage-log"></ul>
+                        <h3 style="margin-top:16px">사용 기록</h3>
+                        <div class="controls" style="margin-bottom:8px">
+                            <label for="usage-sort">정렬:</label>
+                            <select id="usage-sort" onchange="renderUsageLogList('${chem.slug}')">
+                                <option value="time">최신순</option>
+                                <option value="use">USE</option>
+                                <option value="discard">DISCARD</option>
+                                <option value="scale">SCALE</option>
+                            </select>
+                        </div>
+                        <ul id="usage-log"></ul>
         `;
         renderUsageLogList(chem.slug);
     }
