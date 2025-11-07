@@ -14,7 +14,7 @@ from urllib.parse import quote
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query, status, Response, UploadFile, File
-from fastapi.responses import RedirectResponse, FileResponse
+from fastapi.responses import RedirectResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -22,6 +22,11 @@ from . import schemas, csvdb, localdb
 from .localdb import search_local
 from .utils import slugify
 import re
+import io
+try:
+    from openpyxl import Workbook
+except Exception:  # pragma: no cover
+    Workbook = None
 
 PUBCHEM_AUTOCOMPLETE_URL = (
     "https://pubchem.ncbi.nlm.nih.gov/rest/autocomplete/compound/name/{query}/json"
@@ -46,7 +51,7 @@ import os
 from pathlib import Path
 
 _here = Path(__file__).resolve().parent
-_root = _here.parent  # project root where UI html lives
+_root = _here.parent  # project root where reagent_ology.html lives
 
 # Mount static files at '/'. API remains under '/api/*'
 app.mount(
@@ -61,15 +66,28 @@ def root_redirect():
     return RedirectResponse(url="/index.html")
 
 @app.get("/index.html")
-def serve_ui_file():
+def serve_index_file():
     ui_path = _root / "index.html"
     if not ui_path.exists():
         # Fallback: redirect to mounted static index if any
         return RedirectResponse(url="/_ui/index.html")
     return FileResponse(str(ui_path))
 
+@app.get("/reagent_ology.html")
+def legacy_ui_redirect():
+    # 호환성: 예전 북마크/문서용 경로를 새로운 메인으로 리다이렉트
+    return RedirectResponse(url="/index.html")
 
-# NOTE: Health endpoint defined later with additional metadata. Removed duplicate here to avoid route shadowing.
+@app.get("/regent_ology.html")
+def legacy_typo_redirect():
+    # 오타 경로도 index로 리다이렉트
+    return RedirectResponse(url="/index.html")
+
+
+@app.get("/api/health")
+def health() -> Dict[str, str]:
+    """Lightweight health check for launcher/browser readiness."""
+    return {"status": "ok"}
 
 
 def ensure_unique_slug(base: str, current_id: Optional[int] = None) -> str:
@@ -172,6 +190,53 @@ def list_reagents() -> List[schemas.ReagentOut]:
     return [schemas.ReagentOut(**r) for r in reagents]
 
 
+# 주의: /api/reagents/{slug} 라우트와 충돌할 수 있어 별도 prefix(/api/export)를 사용
+@app.get("/api/export/reagents.xlsx")
+def export_reagents_xlsx() -> Response:
+    """Export reagents to an Excel file (XLSX) for proper Unicode (Korean) support."""
+    if Workbook is None:
+        raise HTTPException(status_code=500, detail="openpyxl이 설치되어 있지 않습니다. requirements.txt에 openpyxl을 추가하세요.")
+    reagents = csvdb.list_all_reagents()
+    headers = [
+        "id","name","formula","cas","location","storage","state","expiry",
+        "quantity_g","volume_ml","density_g_ml","ghs","used","discarded","disposal","nfc_tag_uid"
+    ]
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "reagents"
+    ws.append(headers)
+    for c in reagents:
+        ghs_text = ";".join(c.get("ghs") or [])
+        row = [
+            c.get("id"),
+            c.get("name") or "",
+            c.get("formula") or "",
+            c.get("cas") or "",
+            c.get("location") or "",
+            c.get("storage") or "",
+            c.get("state") or "",
+            c.get("expiry") or "",
+            c.get("quantity") or 0,
+            c.get("volume_ml") or "",
+            c.get("density") or "",
+            ghs_text,
+            c.get("used") or 0,
+            c.get("discarded") or 0,
+            c.get("disposal") or "",
+            c.get("nfc_tag_uid") or "",
+        ]
+        ws.append(row)
+    bio = io.BytesIO()
+    wb.save(bio)
+    bio.seek(0)
+    filename = f"reagentology_export_{datetime.utcnow().date().isoformat()}.xlsx"
+    headers_resp = {
+        "Content-Disposition": f"attachment; filename={filename}",
+        "Cache-Control": "no-store",
+    }
+    return Response(content=bio.getvalue(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers=headers_resp)
+
+
 @app.get("/api/reagents/by-nfc/{tag}", response_model=schemas.ReagentOut)
 def get_reagent_by_nfc(tag: str) -> schemas.ReagentOut:
     """NFC 태그 UID로 시약 조회"""
@@ -207,11 +272,12 @@ def create_reagent(payload: schemas.ReagentCreate) -> schemas.ReagentOut:
     data = {
         "slug": slug,
         "name": payload.name,
-        "formula": payload.formula,
+        # Optional -> CSV에서는 빈 문자열로 저장
+        "formula": payload.formula or "",
         "cas": payload.cas,
-        "location": payload.location,
+        "location": payload.location or "",
         "storage": payload.storage,
-        "state": payload.state,
+    "state": payload.state,
         "expiry": payload.expiry.isoformat() if payload.expiry else None,
         "hazard": payload.hazard,
         "ghs": payload.ghs,
@@ -219,8 +285,6 @@ def create_reagent(payload: schemas.ReagentCreate) -> schemas.ReagentOut:
         "density": payload.density,
         "volume_ml": volume_ml,
         "nfc_tag_uid": normalize_optional_string(payload.nfc_tag_uid),
-        "metallicity": payload.metallicity,
-        "element_group": payload.element_group,
         "quantity": payload.quantity,
         "used": payload.used,
         "discarded": payload.discarded,
@@ -271,10 +335,6 @@ def update_reagent(
         update_data["ghs"] = payload.ghs
     if payload.disposal is not None:
         update_data["disposal"] = payload.disposal
-    if payload.metallicity is not None:
-        update_data["metallicity"] = payload.metallicity
-    if payload.element_group is not None:
-        update_data["element_group"] = payload.element_group
     
     # 밀도 업데이트 시 부피 재계산 (액체에 한함)
     if payload.density is not None:

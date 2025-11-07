@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>index</title>
+<title>Reagent-ology</title>
 <style>
     body { 
         font-family: Arial, sans-serif; 
@@ -102,11 +102,6 @@
     .danger-note { color:#ffdddd; background: rgba(220,53,69,0.12); padding:8px; border-radius:6px; margin-top:8px; }
     .meta { font-size:0.9rem; color:#e6f1f5; margin-top:8px; }
 
-    /* Usage log panel styling */
-    #usage-log { list-style:none; margin:0; padding:12px 16px; background:rgba(27,140,174,0.35); border-radius:12px; color:#eaf6ff; }
-    #usage-log li { margin:6px 0; }
-    #usage-log li.empty { opacity:0.85; }
-
     /* App-branded modal/alert */
     .app-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.55); display:flex; align-items:center; justify-content:center; z-index:2000; }
     .app-modal { width:min(90%,520px); background:#152833; color:#e8f6ff; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.4); overflow:hidden; }
@@ -147,10 +142,10 @@
         <nav>
             <button onclick="navigateTo('about')">기업 소개</button>
             <button onclick="navigateTo('add')">시약 등록</button>
+            <button onclick="navigateTo('numbers')">번호 생성</button>
             <button onclick="navigateTo('discard')">시약 폐기</button>
             <button onclick="navigateTo('inventory')">연구실 보유 물질</button>
             <button onclick="navigateTo('usage')">시약 사용 현황</button>
-            <button onclick="navigateTo('classify')">분류 관리</button>
             <!-- 불필요 탭 숨김: 저울 CSV 업로드 / 자동완성 DB -->
         </nav>
 
@@ -188,36 +183,38 @@
                 <input type="text" id="location" placeholder="Location" list="location-suggestions" autocomplete="off">
                 <datalist id="location-suggestions"></datalist>
                 <input type="text" id="storage" placeholder="보관 조건">
-                <input type="date" id="expiry" placeholder="유통기한">
+                <span style="color:#fff;opacity:.9;">유통기한</span>
+                <input type="date" id="expiry" placeholder="YYYY-MM-DD">
                 <input type="text" id="hazard" placeholder="GHS 분류 (콤마로 구분)">
                 <input type="text" id="disposal" placeholder="폐기 방법">
                 <input type="number" step="0.01" id="quantity" placeholder="Quantity (ml/g)">
                 <input type="number" step="0.0001" id="density" placeholder="Density (g/mL)">
                 <input type="text" id="nfcTag" placeholder="NFC Tag UID">
+                <select id="propertyTag" title="구분">
+                    <option value="">구분</option>
+                    <option value="금속">금속</option>
+                    <option value="비금속">비금속</option>
+                    <option value="금속산화물">금속산화물</option>
+                    <option value="산">산</option>
+                    <option value="염기">염기</option>
+                    <option value="산화제">산화제</option>
+                    <option value="환원제">환원제</option>
+                    <option value="할로겐화물">할로겐화물</option>
+                    <option value="용매">용매</option>
+                    <option value="시약">시약</option>
+                </select>
                 <select id="state">
                 <option value="liquid">liquid</option>
                 <option value="solid">solid</option>
                 </select>
 
-                <!-- 추가 분류: 금속성/족 -->
-                <select id="metallicity">
-                    <option value="">금속성</option>
-                    <option value="metal">금속</option>
-                    <option value="nonmetal">비금속</option>
-                    <option value="metalloid">준금속</option>
-                </select>
-                <select id="elementGroup">
-                    <option value="">족</option>
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="17">17</option>
-                    <option value="other">기타</option>
-                </select>
-
                 <button onclick="saveChemical()" class="action-btn small">Save</button>
+                <button onclick="openAddScaleModal()" class="small">저울에서 읽기</button>
+                <button onclick="createDummyNextQuick()" class="small">더미만 생성</button>
+                <button onclick="openNextAdd()" class="small">다음 번호로 등록 이동</button>
                 <button onclick="resetForm()" class="small">Clear</button>
             </div>
-            <div id="form-note" class="meta">필수: Name, Formula, Location, Quantity(기본 g). 밀도(g/mL)를 입력하면 무게 측정 시 mL 환산이 가능합니다.</div>
+            <div id="form-note" class="meta">필수 입력 없음. 필요한 항목만 입력해 저장할 수 있습니다. (권장: Formula, Location, Quantity; 밀도(g/mL)를 입력하면 무게 측정 시 mL 환산이 가능합니다.)</div>
         </div>
 
         <div id="discard" class="page">
@@ -233,64 +230,36 @@
             <div class="controls">
                 <input type="text" id="search" placeholder="검색: 이름/공식/CAS..." oninput="renderList()">
                 <select id="filterGHS" onchange="renderList()">
-                    <option value="">--GHS 필터--</option>
-                    <option>Flammable</option>
-                    <option>Toxic</option>
-                    <option>Corrosive</option>
-                    <option>Oxidizer</option>
+                    <option value="">--GHS 분류--</option>
                 </select>
-                <select id="filterStorage" onchange="renderList()">
-                    <option value="">보관</option>
+                <select id="filterProp" onchange="renderList()">
+                    <option value="">--구분 필터--</option>
+                    <option>금속</option>
+                    <option>비금속</option>
+                    <option>금속산화물</option>
+                    <option>산</option>
+                    <option>염기</option>
+                    <option>산화제</option>
+                    <option>환원제</option>
+                    <option>할로겐화물</option>
+                    <option>용매</option>
                 </select>
-                <select id="filterState" onchange="renderList()">
-                    <option value="">상태</option>
-                    <option value="liquid">liquid</option>
-                    <option value="solid">solid</option>
-                </select>
-                <select id="filterExpiry" onchange="renderList()">
-                    <option value="">유통기한</option>
-                    <option value="expired">만료</option>
-                    <option value="has">유통기한 있음</option>
-                    <option value="none">유통기한 없음</option>
-                </select>
-                <select id="filterDisposal" onchange="renderList()">
-                    <option value="">폐기</option>
-                </select>
-                <select id="filterMetallicity" onchange="renderList()">
-                    <option value="">금속성</option>
-                </select>
-                <select id="filterGroup" onchange="renderList()">
-                    <option value="">족</option>
-                </select>
+                <select id="filterLocation" onchange="renderList()"><option value="">--위치--</option></select>
+                <select id="filterStorage" onchange="renderList()"><option value="">--보관 조건--</option></select>
+                <select id="filterExpiry" onchange="renderList()"><option value="">--유통기한 상태--</option><option value="expired">유통기한 지남</option><option value="soon">유통기한 임박(10일)</option></select>
+                <select id="filterDisposal" onchange="renderList()"><option value="">--폐기 방법--</option></select>
+                <select id="filterState" onchange="renderList()"><option value="">--상태--</option></select>
                 <select id="sortBy" onchange="renderList()">
-                    <option value="id">정렬: 등록순</option>
                     <option value="name">이름</option>
-                    <option value="quantity">수량(내림)</option>
-                    <option value="metallicity">금속성</option>
-                    <option value="group">족</option>
+                    <option value="quantity">수량</option>
+                    <option value="prop">성질</option>
+                    <option value="expiry">유통기한</option>
                 </select>
+                <button onclick="(async()=>{await refreshReagents(); rebuildInventoryFilters(); renderList(); appToast('서버에서 최신 데이터를 불러왔습니다.');})()" class="small">서버 새로고침</button>
                 <button onclick="exportCSV()" class="small">CSV 내보내기</button>
+                <button onclick="exportXLSX()" class="small">XLSX 내보내기</button>
             </div>
             <ul id="chemical-list"></ul>
-        </div>
-
-        <!-- 분류 관리 탭 -->
-        <div id="classify" class="page">
-            <h2>분류 관리</h2>
-            <p class="meta">금속성/족 옵션을 편집하면 목록 필터 드롭다운에도 반영됩니다. 저장은 로컬 브라우저에 보관됩니다.</p>
-            <div class="controls">
-                <input type="text" id="class-metallicity-input" placeholder="금속성 추가 (예: metal)">
-                <button class="small" onclick="addClassOption('metallicity')">추가</button>
-            </div>
-            <ul id="class-metallicity-list"></ul>
-            <div class="controls" style="margin-top:16px">
-                <input type="text" id="class-group-input" placeholder="족 추가 (예: 3)">
-                <button class="small" onclick="addClassOption('group')">추가</button>
-            </div>
-            <ul id="class-group-list"></ul>
-            <div class="controls" style="margin-top:16px">
-                <button class="small" onclick="resetClassOptions()">기본값으로 재설정</button>
-            </div>
         </div>
 
         <div id="auto-db" class="page">
@@ -310,6 +279,24 @@
                 <button onclick="resetUsageStats()" class="small">사용 통계 리셋</button>
             </div>
             <ul id="usage-list"></ul>
+        </div>
+
+        <div id="numbers" class="page">
+            <h2>번호 생성(더미/등록 이동)</h2>
+            <div class="about-section">
+                <p>스티커/UID를 숫자만으로 운용할 때, 다음 번호를 자동으로 산출해 등록 화면으로 이동하거나 더미를 먼저 생성할 수 있습니다.</p>
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-top:8px;">
+                    <div>현재 마지막 번호: <strong id="current-max-number">-</strong></div>
+                    <div>다음 번호: <strong id="next-number">-</strong></div>
+                    <button class="small" onclick="createDummyNextQuick()">다음 번호 더미만 생성</button>
+                    <button class="small" onclick="createDummyNextAndEdit()">다음 번호 더미 생성 후 수정 (#/add/N)</button>
+                    <div style="display:flex; gap:6px; align-items:center;">
+                        <input type="number" id="bulk-dummy-count" value="10" min="1" step="1" style="width:80px; padding:6px; border-radius:4px;"/>
+                        <button class="small" onclick="createBulkDummiesFromInput()">대량 더미 생성</button>
+                    </div>
+                    <button class="small" onclick="refreshNumbersPage()">새로고침</button>
+                </div>
+            </div>
         </div>
 
         <div id="scale-csv" class="page">
@@ -519,10 +506,22 @@ function appConfirm(message, opts={}) {
         document.body.appendChild(overlay);
         const ok = overlay.querySelector('#__app_ok');
         const cancel = overlay.querySelector('#__app_cancel');
-        const close = (val) => { overlay.remove(); resolve(val); };
+        const handleKey = (e) => {
+            if(e.key === 'Enter') { e.preventDefault(); close(true); }
+            else if(e.key === 'Escape') { e.preventDefault(); close(false); }
+        };
+        const close = (val) => {
+            window.removeEventListener('keydown', handleKey);
+            overlay.remove();
+            resolve(val);
+        };
         ok.addEventListener('click', () => close(true));
         cancel.addEventListener('click', () => close(false));
         overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(false); });
+        // 키보드 단축키: Enter=확인, Esc=취소
+        window.addEventListener('keydown', handleKey);
+        // 초점 이동: 확인 버튼으로 포커스
+        setTimeout(()=>{ try{ ok.focus(); } catch(_){} }, 0);
     });
 }
 
@@ -636,35 +635,32 @@ async function seedDefaultDataIfNeeded() {
         return;
     }
     if(chemicals.length) return;
-    for(const sample of DEFAULT_CHEMS) {
-        const density = typeof sample.density === 'number' && !Number.isNaN(sample.density)
-            ? sample.density
-            : null;
-        let volume_ml = null;
-        if(typeof sample.quantity === 'number' && density) {
-            volume_ml = sample.quantity / density;
-        }
-        const payload = {
-            name: sample.name,
-            formula: sample.formula,
-            cas: sample.cas || null,
-            location: sample.location,
-            storage: sample.storage || null,
-            expiry: null,
-            hazard: sample.ghs.length ? sample.ghs.join(', ') : null,
-            ghs: sample.ghs.slice(),
-            disposal: sample.disposal || null,
-            density,
-            volume_ml,
-            nfc_tag_uid: sample.nfc_tag_uid || null,
-            
-            quantity: sample.quantity,
-        };
-        try {
+    try {
+        for(const sample of DEFAULT_CHEMS) {
+            const density = (typeof sample.density === 'number' && !Number.isNaN(sample.density)) ? sample.density : null;
+            const quantity = (typeof sample.quantity === 'number' && !Number.isNaN(sample.quantity)) ? sample.quantity : 0;
+            const volume_ml = (density && quantity) ? (quantity / density) : null;
+            const ghs = Array.isArray(sample.ghs) ? sample.ghs : [];
+            const payload = {
+                name: sample.name,
+                formula: sample.formula || '',
+                cas: sample.cas || null,
+                location: sample.location || 'Shelf',
+                storage: sample.storage || null,
+                state: sample.state || (density ? 'liquid' : 'solid'),
+                expiry: null,
+                hazard: ghs.join(', '),
+                ghs,
+                disposal: sample.disposal || null,
+                density,
+                volume_ml,
+                nfc_tag_uid: sample.nfc_tag_uid || null,
+                quantity,
+            };
             await apiRequest('/reagents', { method: 'POST', body: payload });
-        } catch (err) {
-            console.warn('Failed to seed reagent', sample.name, err);
         }
+    } catch (e) {
+        console.warn('Seeding failed/skipped:', e);
     }
     await refreshReagents(false);
     try {
@@ -865,112 +861,275 @@ function navigateTo(route, param = '') {
     location.hash = path;
 }
 
-// ---- 분류 옵션 관리 (로컬 저장) ----
-const CLASS_METAL_KEY = 'reagentology_class_metallicity';
-const CLASS_GROUP_KEY = 'reagentology_class_group';
+// ===== 번호/더미/라우팅 유틸 =====
+function isNumericString(val){
+    return typeof val === 'string' && /^\d+$/.test(val.trim());
+}
 
-function getClassOptions(key, defaults) {
+function findReagentByTagOrNumber(val){
+    if(!val) return null;
+    const s = String(val).trim();
+    const num = /^\d+$/.test(s) ? Number(s) : null;
+    // 우선 NFC UID 일치
+    let found = chemicals.find(c => (c.nfc_tag_uid || '') === s);
+    if(found) return found;
+    // 이름이 숫자 문자열인 경우
+    found = chemicals.find(c => isNumericString(String(c.name || '')) && String(c.name) === s);
+    if(found) return found;
+    // ID 숫자 매칭 (보조)
+    if(num !== null){
+        found = chemicals.find(c => Number(c.id) === num);
+        if(found) return found;
+    }
+    return null;
+}
+
+function fillEditForm(c){
+    if(!c) return;
+    document.getElementById('edit-id').value = c.id;
+    document.getElementById('name').value = c.name || '';
+    document.getElementById('formula').value = c.formula || '';
+    document.getElementById('cas').value = c.cas || '';
+    document.getElementById('location').value = c.location || '';
+    document.getElementById('storage').value = c.storage || '';
+    document.getElementById('expiry').value = c.expiry ? c.expiry.slice(0,10) : '';
+    document.getElementById('hazard').value = Array.isArray(c.ghs) && c.ghs.length ? c.ghs.join(', ') : (c.hazard || '');
+    document.getElementById('disposal').value = c.disposal || '';
+    document.getElementById('quantity').value = c.quantity ?? '';
+    document.getElementById('density').value = c.density ?? '';
+    document.getElementById('nfcTag').value = c.nfc_tag_uid || '';
+    // 성질 select를 ghs로부터 유추
+    const propSel = document.getElementById('propertyTag');
+    if(propSel){
+        const props = Array.isArray(c.ghs) ? c.ghs : [];
+        const known = ["금속","비금속","금속산화물","산","염기","산화제","환원제","할로겐화물","용매"];
+        const hit = known.find(k => props.includes(k));
+        propSel.value = hit || '';
+    }
+    showPage('add');
+}
+
+function computeMaxNumeric(){
+    let max = 0;
+    for(const c of chemicals){
+        const nameNum = isNumericString(String(c.name || '')) ? Number(c.name) : null;
+        if(nameNum !== null && nameNum > max) max = nameNum;
+        const tagNum = isNumericString(String(c.nfc_tag_uid || '')) ? Number(c.nfc_tag_uid) : null;
+        if(tagNum !== null && tagNum > max) max = tagNum;
+    }
+    return max;
+}
+
+function getUsedStickerNumbers(){
+    const set = new Set();
+    for(const c of chemicals){
+        const n1 = isNumericString(String(c.name || '')) ? Number(c.name) : null;
+        if(n1 && n1 > 0) set.add(n1);
+        const n2 = isNumericString(String(c.nfc_tag_uid || '')) ? Number(c.nfc_tag_uid) : null;
+        if(n2 && n2 > 0) set.add(n2);
+    }
+    return set;
+}
+
+function smallestUnusedStickerNumber(){
+    const used = getUsedStickerNumbers();
+    let i = 1;
+    while(used.has(i)) i++;
+    return i;
+}
+
+function canonicalNumber(c){
+    if(!c) return null;
+    if(isNumericString(String(c.name || ''))) return Number(String(c.name));
+    if(isNumericString(String(c.nfc_tag_uid || ''))) return Number(String(c.nfc_tag_uid));
+    return null;
+}
+
+async function refreshNumbersPage(){
+    if(!chemicals.length){
+        await refreshReagents(false);
+    }
+    const max = computeMaxNumeric();
+    const next = smallestUnusedStickerNumber();
+    const maxEl = document.getElementById('current-max-number');
+    const nextEl = document.getElementById('next-number');
+    if(maxEl) maxEl.textContent = String(max);
+    if(nextEl) nextEl.textContent = String(next);
+}
+
+// openNextAdd: deprecated UI, kept for compatibility
+function openNextAdd(){
+    const next = smallestUnusedStickerNumber();
+    navigateTo('add', String(next));
+}
+
+async function createDummyWithNumber(n){
+    const name = String(n);
+    const uid = String(n);
     try {
-        const raw = localStorage.getItem(key);
-        if(raw) {
-            const arr = JSON.parse(raw);
-            if(Array.isArray(arr)) return arr;
+        const saved = await apiRequest('/reagents', { method:'POST', body: { name, nfc_tag_uid: uid } });
+        replaceReagentInState(saved);
+        navigateTo('add', name);
+    } catch(err){
+        handleApiError(err, '더미 생성 실패');
+    }
+}
+
+function createDummyNextAndEdit(){
+    const next = smallestUnusedStickerNumber();
+    createDummyWithNumber(next);
+}
+
+// 화면 전환 없이 더미만 연속 생성
+async function createDummyNextQuick(){
+    const next = smallestUnusedStickerNumber();
+    try{
+        const saved = await apiRequest('/reagents', { method:'POST', body:{ name: String(next), nfc_tag_uid: String(next) } });
+        replaceReagentInState(saved);
+        // 서버 기준 상태 재동기화는 가볍게 백그라운드로
+        refreshReagents(false).then(()=>{ rebuildInventoryFilters?.(); renderList(); });
+        appToast(`더미 생성: ${next}`);
+        // numbers 페이지 표시값 업데이트 시도 (현재 페이지 무관)
+        refreshNumbersPage().catch(()=>{});
+    }catch(err){
+        handleApiError(err, '더미 생성 실패');
+    }
+}
+
+// 기존 숫자형 name 더미 중 NFC UID가 비어 있는 경우 자동 백필
+async function ensureNfcBackfill(){
+    const candidates = chemicals.filter(c => isNumericString(String(c.name||'')) && !c.nfc_tag_uid);
+    if(!candidates.length) return;
+    for(const c of candidates){
+        try {
+            const num = String(c.name).trim();
+            const updated = await apiRequest(`/reagents/${encodeURIComponent(c.slug)}`, { method:'PUT', body:{ nfc_tag_uid: num } });
+            replaceReagentInState(updated);
+        } catch(e){ console.warn('NFC backfill 실패:', c.name, e); }
+    }
+    renderList();
+}
+
+// 입력값 기반 대량 더미 생성 트리거 (numbers 탭)
+function createBulkDummiesFromInput(){
+    const el = document.getElementById('bulk-dummy-count');
+    const n = parseInt((el && el.value) ? el.value : '0', 10);
+    createBulkDummies(n);
+}
+
+// 대량 더미 생성: 화면 전환 없이 연속 등록
+async function createBulkDummies(count){
+    const n = Number(count);
+    if(!Number.isInteger(n) || n <= 0){ await appAlert('생성 개수를 1 이상의 정수로 입력하세요.'); return; }
+    const cap = 500; // 안전 상한
+    const target = Math.min(n, cap);
+    let first = null, last = null, success = 0;
+    for(let i=0;i<target;i++){
+        const next = smallestUnusedStickerNumber();
+        try{
+            const saved = await apiRequest('/reagents', { method:'POST', body:{ name: String(next), nfc_tag_uid: String(next) } });
+            replaceReagentInState(saved);
+            if(first===null) first = next;
+            last = next;
+            success++;
+        }catch(err){
+            console.error('bulk dummy create failed for', next, err);
+            await appAlert(`더미 생성 실패: ${next}\n${err.message||err}`);
+            break;
         }
-    } catch(e) {}
-    return defaults.slice();
-}
-
-function setClassOptions(key, arr) {
-    try { localStorage.setItem(key, JSON.stringify(arr)); } catch(e) {}
-}
-
-function currentMetallicityOptions() {
-    const defaults = ['metal','nonmetal','metalloid'];
-    const saved = getClassOptions(CLASS_METAL_KEY, defaults);
-    // 데이터에서 발견되는 값 합치기
-    const fromData = Array.from(new Set(chemicals.map(c => c.metallicity).filter(Boolean)));
-    const merged = Array.from(new Set([...saved, ...fromData]));
-    return merged;
-}
-
-function currentGroupOptions() {
-    const defaults = ['1','2','17','other'];
-    const saved = getClassOptions(CLASS_GROUP_KEY, defaults);
-    const fromData = Array.from(new Set(chemicals.map(c => c.element_group).filter(Boolean)));
-    const merged = Array.from(new Set([...saved, ...fromData]));
-    return merged;
-}
-
-function renderClassifyPage() {
-    const mList = document.getElementById('class-metallicity-list');
-    const gList = document.getElementById('class-group-list');
-    if(mList) {
-        const metals = getClassOptions(CLASS_METAL_KEY, ['metal','nonmetal','metalloid']);
-        mList.innerHTML = metals.map(v=>`<li>${escapeHtml(v)} <button class="small" onclick="removeClassOption('metallicity','${v}')">삭제</button></li>`).join('');
     }
-    if(gList) {
-        const groups = getClassOptions(CLASS_GROUP_KEY, ['1','2','17','other']);
-        gList.innerHTML = groups.map(v=>`<li>${escapeHtml(v)} <button class="small" onclick="removeClassOption('group','${v}')">삭제</button></li>`).join('');
+    // 서버와 최종 동기화
+    await refreshReagents(false);
+    rebuildInventoryFilters?.();
+    renderList();
+    refreshNumbersPage().catch(()=>{});
+    if(success){ appToast(`더미 ${success}개 생성 완료${first!==null?` (${first}${last!==first?`~${last}`:''})`:''}`); }
+}
+
+// ===== 추가/수정 페이지용 저울 연동 =====
+function openAddScaleModal() {
+    // 기존 showScaleModal 스타일의 간단 모달로, 읽은 무게를 폼의 Quantity에 채워넣기만 함
+    const modal = document.createElement('div');
+    modal.id = 'scale-modal-add';
+    modal.style.cssText = `
+        position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+        display: flex; justify-content: center; align-items: center; z-index: 1000;`;
+    modal.innerHTML = `
+        <div style="background: rgba(144,178,187,0.95); padding: 24px; border-radius: 12px; max-width: 480px; width: 90%;">
+            <h2 style="margin-top: 0; color: white;">저울에서 읽기 (등록/수정)</h2>
+            <div style="margin: 16px 0;">
+                <label style="color: white; display: block; margin-bottom: 8px;">시리얼 포트 선택:</label>
+                <select id="scale-port-add" style="width: 100%; padding: 8px; border-radius: 4px;">
+                    <option value="">포트 선택...</option>
+                </select>
+                <button onclick="loadScalePortsForAdd()" style="margin-top: 8px; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">포트 새로고침</button>
+            </div>
+            <div id="scale-weight-display-add" style="margin: 12px 0; padding: 16px; background: rgba(0,0,0,0.3); border-radius: 8px; text-align: center;">
+                <div style="color: white; font-size: 14px; margin-bottom: 8px;">측정된 무게</div>
+                <div id="scale-reading-add" style="color: #00ff00; font-size: 32px; font-weight: bold;">-- g</div>
+                <div id="scale-status-add" style="color: #aaa; font-size: 12px; margin-top: 8px;">대기 중...</div>
+            </div>
+            <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                <button onclick="readWeightForAdd()" style="padding: 10px 16px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">저울에서 읽기</button>
+                <button onclick="closeAddScaleModal()" style="padding: 10px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">닫기</button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+    loadScalePortsForAdd();
+}
+
+function closeAddScaleModal() {
+    const modal = document.getElementById('scale-modal-add');
+    if (modal) modal.remove();
+}
+
+async function loadScalePortsForAdd() {
+    try {
+        const res = await fetch(`${API_BASE}/scale/ports`);
+        if(!res.ok) throw new Error('Failed to load ports');
+        const data = await res.json();
+        const sel = document.getElementById('scale-port-add');
+        sel.innerHTML = '<option value="">포트 선택...</option>';
+        if(Array.isArray(data.ports) && data.ports.length) {
+            for(const port of data.ports) {
+                const opt = document.createElement('option');
+                opt.value = port.device;
+                opt.textContent = `${port.device} - ${port.description}`;
+                sel.appendChild(opt);
+            }
+        } else {
+            sel.innerHTML = '<option value="">사용 가능한 포트 없음</option>';
+        }
+    } catch (err) {
+        console.error('loadScalePortsForAdd failed', err);
+        document.getElementById('scale-status-add').textContent = '포트 로드 실패';
     }
 }
 
-function addClassOption(type) {
-    if(type==='metallicity') {
-        const input = document.getElementById('class-metallicity-input');
-        const val = (input?.value||'').trim(); if(!val) return;
-        const list = getClassOptions(CLASS_METAL_KEY, ['metal','nonmetal','metalloid']);
-        if(!list.includes(val)) list.push(val);
-        setClassOptions(CLASS_METAL_KEY, list);
-        input.value=''; renderClassifyPage(); populateFilterOptions();
-    } else if(type==='group') {
-        const input = document.getElementById('class-group-input');
-        const val = (input?.value||'').trim(); if(!val) return;
-        const list = getClassOptions(CLASS_GROUP_KEY, ['1','2','17','other']);
-        if(!list.includes(val)) list.push(val);
-        setClassOptions(CLASS_GROUP_KEY, list);
-        input.value=''; renderClassifyPage(); populateFilterOptions();
+async function readWeightForAdd() {
+    const port = document.getElementById('scale-port-add').value;
+    const statusEl = document.getElementById('scale-status-add');
+    const readingEl = document.getElementById('scale-reading-add');
+    if(!port) { statusEl.textContent = '시리얼 포트를 선택하세요.'; return; }
+    statusEl.textContent = '저울에서 읽는 중...';
+    statusEl.style.color = '#ffc107';
+    try {
+        const res = await fetch(`${API_BASE}/scale/weight?port=${encodeURIComponent(port)}`);
+        if(!res.ok) throw new Error('Failed to read weight');
+        const data = await res.json();
+        const w = data.weight_grams;
+        readingEl.textContent = `${formatNumberDisplay(w)} g`;
+        statusEl.textContent = '읽기 완료';
+        statusEl.style.color = '#00ff00';
+        // 폼에 반영
+        const qty = document.getElementById('quantity');
+        if(qty) qty.value = (typeof w === 'number' ? w : '');
+    } catch (err) {
+        console.error('readWeightForAdd failed', err);
+        statusEl.textContent = '읽기 실패';
+        statusEl.style.color = '#ff0000';
+        readingEl.textContent = '-- g';
     }
-}
-
-function removeClassOption(type, val) {
-    if(type==='metallicity') {
-        let list = getClassOptions(CLASS_METAL_KEY, ['metal','nonmetal','metalloid']);
-        list = list.filter(x => x !== val);
-        setClassOptions(CLASS_METAL_KEY, list);
-    } else if(type==='group') {
-        let list = getClassOptions(CLASS_GROUP_KEY, ['1','2','17','other']);
-        list = list.filter(x => x !== val);
-        setClassOptions(CLASS_GROUP_KEY, list);
-    }
-    renderClassifyPage(); populateFilterOptions();
-}
-
-function resetClassOptions() {
-    setClassOptions(CLASS_METAL_KEY, ['metal','nonmetal','metalloid']);
-    setClassOptions(CLASS_GROUP_KEY, ['1','2','17','other']);
-    renderClassifyPage(); populateFilterOptions();
-}
-
-function populateFilterOptions() {
-    // 스토리지 / 폐기: 데이터에서 유니크 값 채우기
-    const fill = (id, values) => {
-        const sel = document.getElementById(id); if(!sel) return;
-        const keep = sel.value;
-        const base = sel.querySelector('option[value=""]');
-        sel.innerHTML = '';
-        if(base) sel.appendChild(base);
-        Array.from(new Set(values.filter(v=>v))).sort((a,b)=>String(a).localeCompare(String(b))).forEach(v=>{
-            const opt=document.createElement('option'); opt.value=String(v); opt.textContent=String(v); sel.appendChild(opt);
-        });
-        if(keep) sel.value = keep;
-    };
-    fill('filterStorage', chemicals.map(c=>c.storage||'').filter(Boolean));
-    fill('filterDisposal', chemicals.map(c=>c.disposal||'').filter(Boolean));
-    // 금속성/족: 사용자 정의 + 데이터
-    const metals = currentMetallicityOptions();
-    const groups = currentGroupOptions();
-    fill('filterMetallicity', metals);
-    fill('filterGroup', groups);
 }
 
 async function saveChemical() {
@@ -984,30 +1143,28 @@ async function saveChemical() {
     const storage = document.getElementById('storage').value.trim();
     const expiry = document.getElementById('expiry').value;
     const hazard = document.getElementById('hazard').value.trim();
+    const propertyTagEl = document.getElementById('propertyTag');
+    const propertyTag = propertyTagEl ? propertyTagEl.value : '';
     const disposal = document.getElementById('disposal').value.trim();
     const quantityRaw = document.getElementById('quantity').value;
-    const quantity = quantityRaw !== '' ? parseFloat(quantityRaw) : NaN;
+    const quantity = quantityRaw !== '' ? parseFloat(quantityRaw) : null; // 비필수
     const densityRaw = document.getElementById('density').value;
     const stateEl = document.getElementById('state');
     const state = stateEl ? stateEl.value : '';
     const nfcTag = document.getElementById('nfcTag').value.trim();
-    const metallicity = (document.getElementById('metallicity')?.value || '').trim() || null;
-    const elementGroup = (document.getElementById('elementGroup')?.value || '').trim() || null;
 
     let density = null;
     if(densityRaw !== '') {
         const parsedDensity = parseFloat(densityRaw);
         if(Number.isNaN(parsedDensity) || parsedDensity <= 0) {
-            appAlert('밀도는 0보다 큰 숫자여야 합니다.');
+            await appAlert('밀도는 0보다 큰 숫자여야 합니다.');
             return;
         }
         density = parsedDensity;
-    }
+    } // 선택 입력
 
-    if(!name || !formula || !locationValue || Number.isNaN(quantity)) {
-        appAlert('필수 항목을 채워주세요: Name, Formula, Location, Quantity');
-        return;
-    }
+    // 최소 검증: 이름만 필수 (수량/밀도 등은 비필수)
+    if(!name) { await appAlert('이름(Name)을 입력해주세요.'); return; }
 
     const payload = {
         name,
@@ -1018,14 +1175,16 @@ async function saveChemical() {
         state: state || null,
         expiry: expiry || null,
         hazard: hazard || null,
-        ghs: parseGhsInput(hazard),
+        ghs: (() => {
+            const base = parseGhsInput(hazard);
+            if(propertyTag && !base.includes(propertyTag)) base.push(propertyTag);
+            return base;
+        })(),
         disposal: disposal || null,
         density,
-        volume_ml: (density && state === 'liquid') ? quantity / density : null,
+        volume_ml: (density && state === 'liquid' && typeof quantity === 'number' && !Number.isNaN(quantity)) ? quantity / density : null,
         nfc_tag_uid: nfcTag || null,
-        metallicity,
-        element_group: elementGroup,
-        quantity,
+        quantity: (typeof quantity === 'number' && !Number.isNaN(quantity)) ? quantity : null,
     };
 
     const existing = idValue ? chemicals.find(c => c.id === Number(idValue)) : null;
@@ -1046,12 +1205,13 @@ async function saveChemical() {
                 body: payload,
             });
         }
-        replaceReagentInState(saved);
-        renderList();
-        resetForm();
-        // 저장 후 목록으로 이동
-        navigateTo('inventory');
-        appToast('저장이 완료되었습니다. 목록으로 이동합니다.');
+    replaceReagentInState(saved);
+    // 저장 후 인벤토리로 이동 + 서버 상태 재동기화
+    navigateTo('inventory');
+    await refreshReagents(false);
+    rebuildInventoryFilters?.();
+    renderList();
+        appToast('저장되었습니다. 인벤토리로 이동했습니다.');
     } catch (err) {
         handleApiError(err, '시약을 저장하지 못했습니다.');
     }
@@ -1070,13 +1230,13 @@ function renderList() {
 
     const q = (document.getElementById('search')?.value || '').toLowerCase();
     const ghsFilter = document.getElementById('filterGHS')?.value || '';
+    const propFilter = document.getElementById('filterProp')?.value || '';
+    const locFilter = document.getElementById('filterLocation')?.value || '';
     const storageFilter = document.getElementById('filterStorage')?.value || '';
-    const stateFilter = document.getElementById('filterState')?.value || '';
     const expiryFilter = document.getElementById('filterExpiry')?.value || '';
     const disposalFilter = document.getElementById('filterDisposal')?.value || '';
-    const metallicityFilter = document.getElementById('filterMetallicity')?.value || '';
-    const groupFilter = document.getElementById('filterGroup')?.value || '';
-    const sortBy = document.getElementById('sortBy')?.value || 'id';
+    const stateFilter = document.getElementById('filterState')?.value || '';
+    const sortBy = document.getElementById('sortBy')?.value || 'name';
 
     let filtered = chemicals.filter(c => {
         if(q) {
@@ -1086,36 +1246,31 @@ function renderList() {
         if(ghsFilter) {
             if(!Array.isArray(c.ghs) || !c.ghs.includes(ghsFilter)) return false;
         }
-        if(storageFilter && (c.storage || '') !== storageFilter) return false;
-        if(stateFilter && (c.state || '') !== stateFilter) return false;
-        if(disposalFilter && (c.disposal || '') !== disposalFilter) return false;
-        if(metallicityFilter && (c.metallicity || '') !== metallicityFilter) return false;
-        if(groupFilter && (c.element_group || '') !== groupFilter) return false;
-        if(expiryFilter) {
-            const exp = c.expiry ? new Date(c.expiry) : null;
-            const now = new Date(); now.setHours(0,0,0,0);
-            if(expiryFilter === 'expired') { if(!(exp && exp < now)) return false; }
-            else if(expiryFilter === 'has') { if(!exp) return false; }
-            else if(expiryFilter === 'none') { if(exp) return false; }
+        if(propFilter){ if(!Array.isArray(c.ghs) || !c.ghs.includes(propFilter)) return false; }
+        if(locFilter){ if((c.location||'') !== locFilter) return false; }
+        if(storageFilter){ if((c.storage||'') !== storageFilter) return false; }
+        if(disposalFilter){ if((c.disposal||'') !== disposalFilter) return false; }
+        if(stateFilter){ if((c.state||'') !== stateFilter) return false; }
+        if(expiryFilter){
+            const today = new Date();
+            const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+            const limit = todayStart + 10*24*60*60*1000; // +10일
+            const expTs = c.expiry ? Date.parse(c.expiry) : null;
+            if(expiryFilter === 'expired'){ if(!(expTs && expTs < todayStart)) return false; }
+            else if(expiryFilter === 'soon'){ if(!(expTs && expTs >= todayStart && expTs <= limit)) return false; }
         }
         return true;
     });
 
     if(sortBy === 'name') {
-        filtered.sort((a,b) => (a.name || '').localeCompare(b.name || ''));
+        filtered.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
     } else if(sortBy === 'quantity') {
-        filtered.sort((a,b) => (b.quantity || 0) - (a.quantity || 0));
-    } else if(sortBy === 'metallicity') {
-        filtered.sort((a,b) => (a.metallicity || '').localeCompare(b.metallicity || ''));
-    } else if(sortBy === 'group') {
-        const toNum = v => {
-            if(v === 'other' || v === '' || v == null) return 9999;
-            const n = Number(v);
-            return Number.isFinite(n) ? n : 9999;
-        };
-        filtered.sort((a,b) => toNum(a.element_group) - toNum(b.element_group));
-    } else {
-        filtered.sort((a,b) => (a.id || 0) - (b.id || 0));
+        filtered.sort((a,b)=>(b.quantity||0)-(a.quantity||0));
+    } else if(sortBy === 'prop') {
+        const known=["금속","비금속","금속산화물","산","염기","산화제","환원제","할로겐화물","용매"]; const score=c=>{const g=Array.isArray(c.ghs)?c.ghs:[];const idx=known.findIndex(k=>g.includes(k));return idx===-1?999:idx;};
+        filtered.sort((a,b)=> score(a)-score(b) || (a.id||0)-(b.id||0));
+    } else if(sortBy === 'expiry') {
+        const toTs=v=>v?Date.parse(v)||Infinity:Infinity; filtered.sort((a,b)=>toTs(a.expiry)-toTs(b.expiry));
     }
 
     filtered.forEach(c => {
@@ -1137,8 +1292,9 @@ function renderList() {
             ? escapeHtml(formatNumberDisplay(c.density, 4))
             : null;
     const nfcDisplay = escapeHtml(c.nfc_tag_uid || '-');
-        const nfcLinkPart = c.nfc_tag_uid
-            ? ` &nbsp; <a href="${location.pathname}#/r/${encodeURIComponent(c.nfc_tag_uid)}" target="_blank">열기</a>`
+        const numCanon = canonicalNumber(c);
+        const nfcLinkPart = numCanon !== null
+            ? ` &nbsp; <a href="${location.pathname}#/add/${encodeURIComponent(String(numCanon))}" target="_blank">열기</a>`
             : '';
         const stateDisplay = c.state ? escapeHtml(c.state) : '-';
 
@@ -1167,22 +1323,12 @@ function renderList() {
                 cls: 'edit',
                 text: 'Edit',
                 onClick: () => {
-                    document.getElementById('edit-id').value = c.id;
-                    document.getElementById('name').value = c.name || '';
-                    document.getElementById('formula').value = c.formula || '';
-                    document.getElementById('cas').value = c.cas || '';
-                    document.getElementById('location').value = c.location || '';
-                    document.getElementById('storage').value = c.storage || '';
-                    document.getElementById('expiry').value = c.expiry ? c.expiry.slice(0, 10) : '';
-                    document.getElementById('hazard').value = Array.isArray(c.ghs) && c.ghs.length ? c.ghs.join(', ') : (c.hazard || '');
-                    document.getElementById('disposal').value = c.disposal || '';
-                    document.getElementById('quantity').value = c.quantity ?? '';
-                    document.getElementById('density').value = c.density ?? '';
-                    document.getElementById('nfcTag').value = c.nfc_tag_uid || '';
-                    if(document.getElementById('metallicity')) document.getElementById('metallicity').value = c.metallicity || '';
-                    if(document.getElementById('elementGroup')) document.getElementById('elementGroup').value = c.element_group || '';
-                    
-                    navigateTo('add');
+                    const num = canonicalNumber(c);
+                    if(num !== null){
+                        navigateTo('add', String(num));
+                    } else {
+                        fillEditForm(c);
+                    }
                 },
             },
             {
@@ -1238,6 +1384,8 @@ async function deleteReagent(reagent) {
     try {
         await apiRequest(`/reagents/${encodeURIComponent(reagent.slug)}`, { method: 'DELETE' });
         removeReagentFromState(reagent.id);
+        await refreshReagents(false);
+        rebuildInventoryFilters?.();
         renderList();
     } catch (err) {
         handleApiError(err, '삭제에 실패했습니다.');
@@ -1251,6 +1399,7 @@ async function applyUsage(reagent, endpoint, amount, note = '') {
             body: { amount, note },
         });
         replaceReagentInState(updated);
+        await refreshReagents(false);
         renderList();
     } catch (err) {
         const actionLabel = endpoint === 'use' ? '사용' : '폐기';
@@ -1493,7 +1642,7 @@ function exportCSV() {
         appAlert('내보낼 데이터가 없습니다.');
         return;
     }
-    const rows = [['id','name','formula','cas','location','storage','state','expiry','quantity_g','volume_ml','density_g_ml','ghs','used','discarded','disposal','nfc_tag_uid','metallicity','element_group']];
+    const rows = [['id','name','formula','cas','location','storage','state','expiry','quantity_g','volume_ml','density_g_ml','ghs','used','discarded','disposal','nfc_tag_uid']];
     chemicals.forEach(c => {
         rows.push([
             c.id,
@@ -1511,9 +1660,7 @@ function exportCSV() {
             c.used ?? 0,
             c.discarded ?? 0,
             c.disposal || '',
-            c.nfc_tag_uid || '',
-            c.metallicity || '',
-            c.element_group || ''
+            c.nfc_tag_uid || ''
         ]);
     });
     const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
@@ -1526,6 +1673,68 @@ function exportCSV() {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+}
+
+async function exportXLSX(){
+    try {
+        const res = await fetch(`${API_BASE}/export/reagents.xlsx`);
+        if(!res.ok){
+            const text = await res.text();
+            appAlert(`XLSX 내보내기 실패: ${text || res.status}`);
+            return;
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `reagentology_export_${new Date().toISOString().slice(0,10)}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        appToast('XLSX 파일을 다운로드했습니다.');
+    } catch(err){
+        handleApiError(err, 'XLSX 파일 생성 실패');
+    }
+}
+
+// 인벤토리 필터 드롭다운 동적 구성
+function rebuildInventoryFilters(){
+    const ghsSel = document.getElementById('filterGHS');
+    const locSel = document.getElementById('filterLocation');
+    const storageSel = document.getElementById('filterStorage');
+    const expirySel = document.getElementById('filterExpiry');
+    const disposalSel = document.getElementById('filterDisposal');
+    const stateSel = document.getElementById('filterState');
+    if(!ghsSel || !locSel || !storageSel || !expirySel || !disposalSel || !stateSel) return;
+
+    const ghsSet = new Set();
+    const locSet = new Set();
+    const storageSet = new Set();
+    const disposalSet = new Set();
+    const stateSet = new Set();
+
+    chemicals.forEach(c => {
+        if(Array.isArray(c.ghs)) c.ghs.forEach(g => g && ghsSet.add(g));
+        if(c.location) locSet.add(c.location);
+        if(c.storage) storageSet.add(c.storage);
+        if(c.disposal) disposalSet.add(c.disposal);
+        if(c.state) stateSet.add(c.state);
+    });
+
+    const buildOptions = (set, labelAll) => {
+        const arr = Array.from(set).sort();
+        return `<option value="">${labelAll}</option>` + arr.map(v => `<option>${escapeHtml(v)}</option>`).join('');
+    };
+
+    ghsSel.innerHTML = buildOptions(ghsSet, '--GHS 분류--');
+    locSel.innerHTML = buildOptions(locSet, '--위치--');
+    storageSel.innerHTML = buildOptions(storageSet, '--보관 조건--');
+    // 고정 상태 옵션으로 구성 (지남/임박)
+    expirySel.innerHTML = `<option value="">--유통기한 상태--</option><option value="expired">유통기한 지남</option><option value="soon">유통기한 임박(10일)</option>`;
+    disposalSel.innerHTML = buildOptions(disposalSet, '--폐기 방법--');
+    stateSel.innerHTML = `<option value="">--상태--</option>`
+        + Array.from(stateSet).sort().map(v => `<option value="${escapeHtml(v)}">${v==='solid'?'solid(고체)':v==='liquid'?'liquid(액체)':escapeHtml(v)}</option>`).join('');
 }
 
 function autoDiscardReport() {
@@ -1552,39 +1761,17 @@ async function renderUsageLogList(slug) {
     if(!box) return;
     box.innerHTML = '<li>불러오는 중...</li>';
     try {
-        let logs = await apiRequest(`/reagents/${encodeURIComponent(slug)}/usage`);
+        const logs = await apiRequest(`/reagents/${encodeURIComponent(slug)}/usage`);
         if(!logs || !logs.length) {
-            box.innerHTML = '<li class="empty">기록 없음</li>';
+            box.innerHTML = '<li>기록 없음</li>';
             return;
         }
-        // 필터 + 정렬 옵션 적용
-        const typeSel = document.getElementById('usage-type');
-        const typeFilter = (typeSel?.value || 'all').toLowerCase();
-        const sortSel = document.getElementById('usage-sort');
-        const sortMode = (sortSel?.value || 'time').toLowerCase();
-        const ts = x => new Date(x).getTime();
-        if(typeFilter !== 'all') {
-            logs = logs.filter(l => String(l.source||'').toLowerCase() === typeFilter);
-        }
-        if(sortMode === 'use' || sortMode === 'discard' || sortMode === 'scale') {
-            logs = [...logs].sort((a,b) => {
-                const pa = (String(a.source||'').toLowerCase() === sortMode) ? 0 : 1;
-                const pb = (String(b.source||'').toLowerCase() === sortMode) ? 0 : 1;
-                if(pa !== pb) return pa - pb;
-                return ts(b.created_at) - ts(a.created_at);
-            });
-        } else {
-            logs = [...logs].sort((a,b) => ts(b.created_at) - ts(a.created_at));
-        }
-
         box.innerHTML = logs.map(log => {
             const when = new Date(log.created_at).toLocaleString();
             const sign = log.delta > 0 ? '+' : '';
-            const deltaStr = `${sign}${formatNumberDisplay(log.delta, 2)} g`;
-            const qtyStr = `${formatNumberDisplay(log.new_qty, 2)} g`;
             return `<li>
                 <span>${escapeHtml(when)}</span>
-                &nbsp; <strong>${deltaStr}</strong> → ${qtyStr}
+                &nbsp; <strong>${sign}${log.delta}</strong> → ${log.new_qty}
                 &nbsp; <em style="opacity:.7">${escapeHtml(log.source || '')}</em>
                 ${log.note ? `&nbsp; <span>${escapeHtml(log.note)}</span>` : ''}
             </li>`;
@@ -1636,29 +1823,13 @@ function showChemicalDetail(id) {
             </div>
 
             <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
-                            <button class="small" onclick="triggerManualMeasurement(${chem.id})">수동 변경</button>
+                            <button class="small" onclick="triggerManualMeasurement($chem.id)">수동 변경</button>
                             <button class="small" onclick="navigateTo('inventory')">목록으로</button>
               <button class="small" onclick="copyReagentLink('${encodeURIComponent(chem.slug)}')">링크 복사</button>
             </div>
 
-                        <h3 style="margin-top:16px">사용 기록</h3>
-                                    <div class="controls" style="margin-bottom:8px">
-                                        <label for="usage-type">보기:</label>
-                                        <select id="usage-type" onchange="renderUsageLogList('${chem.slug}')">
-                                            <option value="all">전체</option>
-                                            <option value="use">USE</option>
-                                            <option value="discard">DISCARD</option>
-                                            <option value="scale">SCALE</option>
-                                        </select>
-                                        <label for="usage-sort">정렬:</label>
-                                        <select id="usage-sort" onchange="renderUsageLogList('${chem.slug}')">
-                                <option value="time">최신순</option>
-                                <option value="use">USE</option>
-                                <option value="discard">DISCARD</option>
-                                <option value="scale">SCALE</option>
-                            </select>
-                        </div>
-                        <ul id="usage-log"></ul>
+            <h3 style="margin-top:16px">사용 기록</h3>
+            <ul id="usage-log" style="margin:0;padding-left:18px"></ul>
         `;
         renderUsageLogList(chem.slug);
     }
@@ -1716,52 +1887,39 @@ async function copyNfcLink(uid) {
 function setupHeaderNfcJump() {
     const container = document.querySelector('.topbar-right');
     if(!container) return;
-    if(container.querySelector('#nfc-jump-input')) return; // 중복 방지
+    if(container.querySelector('#number-jump-input')) return; // 중복 방지
 
+    // 번호로 바로 이동 입력
     const input = document.createElement('input');
     input.type = 'text';
-    input.id = 'nfc-jump-input';
-    input.placeholder = 'NFC UID';
+    input.id = 'number-jump-input';
+    input.placeholder = '번호';
     input.style.padding = '6px';
-    input.style.minWidth = '140px';
+    input.style.minWidth = '80px';
 
-    const btn = document.createElement('button');
-    btn.className = 'small';
-    btn.textContent = 'UID로 이동';
-    btn.style.marginLeft = '4px';
-    btn.onclick = async () => {
-        const uid = input.value.trim();
-        if(!uid) { await appAlert('UID를 입력하세요.'); return; }
-        navigateTo('r', uid);
+    const jumpBtn = document.createElement('button');
+    jumpBtn.className = 'small';
+    jumpBtn.textContent = '번호 이동';
+    jumpBtn.style.marginLeft = '4px';
+    const jumpByNumber = async () => {
+        const val = input.value.trim();
+        if(!val) { await appAlert('번호를 입력하세요.'); return; }
+        if(!/^\d+$/.test(val)) { await appAlert('숫자만 입력하세요.'); return; }
+        navigateTo('add', val);
     };
+    jumpBtn.onclick = jumpByNumber;
+    input.addEventListener('keyup', (e)=>{ if(e.key==='Enter') jumpByNumber(); });
+
+    // 인스턴트 더미 생성 버튼
+    const instantBtn = document.createElement('button');
+    instantBtn.className = 'small';
+    instantBtn.textContent = '인스턴트 생성';
+    instantBtn.style.marginLeft = '4px';
+    instantBtn.onclick = () => createDummyNextAndEdit();
 
     container.appendChild(input);
-    container.appendChild(btn);
-
-    // 스티커 호스트 설정 UI
-    const hostInput = document.createElement('input');
-    hostInput.type = 'text';
-    hostInput.id = 'sticker-host-input';
-    hostInput.placeholder = '스티커 호스트 (예: http://LAB-NT.local:8000)';
-    hostInput.style.padding = '6px';
-    hostInput.style.minWidth = '220px';
-    hostInput.value = getStickerOrigin();
-
-    const hostBtn = document.createElement('button');
-    hostBtn.className = 'small';
-    hostBtn.textContent = '스티커 호스트 저장';
-    hostBtn.style.marginLeft = '4px';
-    hostBtn.onclick = async () => {
-        const val = hostInput.value.trim();
-        if(!/^https?:\/\//i.test(val)) { await appAlert('http:// 또는 https:// 로 시작하는 호스트를 입력하세요.'); return; }
-        setStickerOrigin(val);
-        appToast('스티커 호스트가 저장되었습니다. 이제 스티커 URL은 이 호스트를 기준으로 생성됩니다.');
-        // 미리보기 갱신
-        setupNfcUrlPreview();
-    };
-
-    container.appendChild(hostInput);
-    container.appendChild(hostBtn);
+    container.appendChild(jumpBtn);
+    container.appendChild(instantBtn);
 }
 
 // 추가/수정 폼의 NFC 입력 옆에 스티커 URL 미리보기 표시
@@ -1806,21 +1964,62 @@ function handleHashRoute() {
         showPage('login-page');
         return;
     }
+    // add 라우트: #/add/<uid or number>
+    if(route === 'add' && param){
+        const v = decodeURIComponent(param);
+        const match = findReagentByTagOrNumber(v);
+        if(match){
+            fillEditForm(match); // URL 유지, 편집 폼 바인딩
+        } else {
+            resetForm();
+            document.getElementById('name').value = v;
+            document.getElementById('nfcTag').value = v;
+            showPage('add');
+        }
+        return;
+    }
       // ✅ NFC 라우트 추가 (이 부분 새로 추가)
   // URL이 #/r/<tag_uid> 형식이면 스캔 페이지로 이동
-  if(route === 'r' && param){
-    // 초기 측정 여부(init=1) 확인
-    const query = location.hash.split('?')[1] || '';
-    const isInit = query.includes('init=1');
-    renderScanPage(param, isInit);
-    return;
-  }
+    if(route === 'r' && param){
+        const tagUid = decodeURIComponent(param);
+        const match = findReagentByTagOrNumber(tagUid);
+        if(match){
+            // r/<uid>로 들어왔더라도, 편집은 add/<number> 주소로 통일
+            const num = canonicalNumber(match);
+            if(num){
+                navigateTo('add', String(num));
+            } else {
+                fillEditForm(match);
+            }
+        } else {
+                    if(isNumericString(tagUid)){
+                        const go = confirm(`#/r/${tagUid} 에 해당하는 시약이 없습니다. 지금 더미로 생성할까요?`);
+                        if(go){
+                            createDummyWithNumber(parseInt(tagUid,10)).catch(err=>handleApiError(err,'더미 생성 실패'));
+                        } else {
+                            // 빠른 등록을 위해 기본값 채움
+                            resetForm();
+                            document.getElementById('name').value = tagUid;
+                            document.getElementById('nfcTag').value = tagUid;
+                            showPage('add');
+                        }
+                    } else {
+                        resetForm();
+                        document.getElementById('nfcTag').value = tagUid;
+                        showPage('add');
+                    }
+        }
+        return;
+    }
     // 정적 섹션 라우팅
-    const pages = new Set(['about','add','discard','inventory','usage','classify']);
+    const pages = new Set(['about','add','numbers','discard','inventory','usage']);
     if(pages.has(route)) {
         showPage(route);
-        if(route === 'inventory') { populateFilterOptions(); renderList(); }
-        if(route === 'classify') { renderClassifyPage(); }
+        if(route === 'inventory') {
+            // 인벤토리 진입 시 서버와 동기화 후 렌더
+            refreshReagents(false).then(()=>{ rebuildInventoryFilters?.(); renderList(); });
+        }
+        if(route === 'numbers') refreshNumbersPage();
         return;
     }
     if(route === 'reagents' && param) {
@@ -1997,12 +2196,14 @@ function logout() {
 async function initApp() {
     await refreshReagents();
     await seedDefaultDataIfNeeded();
-    populateFilterOptions();
     renderList();
+    rebuildInventoryFilters?.();
     bindAutocomplete();
     bindLocationAutocomplete();
     setupHeaderNfcJump();
     setupNfcUrlPreview();
+    // 숫자 이름만 가진 기존 더미의 NFC를 자동 백필 (가능한 경우)
+    ensureNfcBackfill().catch(()=>{});
     handleHashRoute();
 }
 
