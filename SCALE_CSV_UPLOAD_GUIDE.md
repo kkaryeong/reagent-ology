@@ -139,7 +139,7 @@ file: scale_measurements.csv
 
 ### 1. 저울 CSV 업로드 메뉴 접속
 
-1. 웹 브라우저에서 `reagent_ology.html` 열기
+1. 웹 브라우저에서 `index.html` 열기
 2. 상단 네비게이션에서 **"저울 CSV 업로드"** 클릭
 
 ### 2. 실시간 측정값 저장

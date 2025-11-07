@@ -46,7 +46,7 @@ import os
 from pathlib import Path
 
 _here = Path(__file__).resolve().parent
-_root = _here.parent  # project root where reagent_ology.html lives
+_root = _here.parent  # project root where UI html lives
 
 # Mount static files at '/'. API remains under '/api/*'
 app.mount(
@@ -58,21 +58,18 @@ app.mount(
 @app.get("/")
 def root_redirect():
     # Redirect to main UI file for convenience
-    return RedirectResponse(url="/reagent_ology.html")
+    return RedirectResponse(url="/index.html")
 
-@app.get("/reagent_ology.html")
+@app.get("/index.html")
 def serve_ui_file():
-    ui_path = _root / "reagent_ology.html"
+    ui_path = _root / "index.html"
     if not ui_path.exists():
         # Fallback: redirect to mounted static index if any
-        return RedirectResponse(url="/_ui/reagent_ology.html")
+        return RedirectResponse(url="/_ui/index.html")
     return FileResponse(str(ui_path))
 
 
-@app.get("/api/health")
-def health() -> Dict[str, str]:
-    """Lightweight health check for launcher/browser readiness."""
-    return {"status": "ok"}
+# NOTE: Health endpoint defined later with additional metadata. Removed duplicate here to avoid route shadowing.
 
 
 def ensure_unique_slug(base: str, current_id: Optional[int] = None) -> str:

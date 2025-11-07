@@ -8,6 +8,7 @@ import time
 import webbrowser
 import socket
 import subprocess
+import platform
 from pathlib import Path
 import urllib.request
 import urllib.error
@@ -23,7 +24,7 @@ def main():
     print()
     
     # HTML 파일 경로 확인
-    html_file = script_dir / "reagent_ology.html"
+    html_file = script_dir / "index.html"
     if not html_file.exists():
         print(f"❌ 오류: {html_file} 파일을 찾을 수 없습니다.")
         input("Enter 키를 눌러 종료...")
@@ -58,7 +59,7 @@ def main():
     # 서버 URL (고정 포트: 8000)
     server_url = "http://127.0.0.1:8000"
     # UI는 이제 FastAPI가 정적 서빙하므로 HTTP 경로로 오픈
-    html_http_url = f"{server_url}/reagent_ology.html"
+    html_http_url = f"{server_url}/index.html"
 
     # mDNS(.local) 안내용 호스트명 구성 (ASCII가 아닌 이름이면 실사용이 제한될 수 있음)
     hostname = socket.gethostname().strip()
@@ -67,7 +68,7 @@ def main():
 
     # 사용자가 STICKER_ORIGIN 환경변수로 스티커용 호스트를 명시적으로 지정할 수 있음
     sticker_origin = os.environ.get("STICKER_ORIGIN", mdns_origin)
-    sticker_ui_url = f"{sticker_origin}/reagent_ology.html"
+    sticker_ui_url = f"{sticker_origin}/index.html"
 
     # LAN IP 탐지 (mDNS 대안으로 안내)
     def get_lan_ip() -> str:
@@ -84,7 +85,7 @@ def main():
                 return "127.0.0.1"
     lan_ip = get_lan_ip()
     lan_origin = f"http://{lan_ip}:8000"
-    lan_ui_url = f"{lan_origin}/reagent_ology.html"
+    lan_ui_url = f"{lan_origin}/index.html"
     
     print("🚀 FastAPI 서버 시작 중...")
     print(f"   서버 주소: {server_url}")
@@ -97,6 +98,7 @@ def main():
     print(f"      {lan_ui_url}")
     print("   * Windows에서 .local(mDNS) 인식이 안 되면 'Bonjour Print Services' 설치를 권장합니다.")
     print("   * 또는 공유기에서 PC 고정 IP 예약 후 http://<고정IP>:8000 사용")
+    print("   * macOS/Linux도 동일 URL 사용 가능 (이 스크립트와 start_server.sh 제공)")
     print()
     print("=" * 60)
     print("⚠️  서버를 종료하려면 Ctrl+C 를 누르세요")
@@ -105,34 +107,55 @@ def main():
     
     # 포트 사용중 확인 및 정리
     def get_pids_on_port(port: int) -> list[int]:
+        system = platform.system().lower()
+        pids: set[int] = set()
         try:
-            # Windows netstat 결과 파싱
-            out = subprocess.check_output(
-                f'netstat -ano | findstr :{port}',
-                shell=True,
-                text=True,
-                stderr=subprocess.STDOUT,
-                encoding='utf-8',
-                errors='ignore',
-            )
-        except subprocess.CalledProcessError:
-            return []
-        pids = set()
-        for line in out.splitlines():
-            if 'LISTENING' in line.upper():
-                parts = line.split()
-                if parts:
+            if 'windows' in system:
+                # Windows netstat 결과 파싱
+                out = subprocess.check_output(
+                    f'netstat -ano | findstr :{port}',
+                    shell=True,
+                    text=True,
+                    stderr=subprocess.STDOUT,
+                    encoding='utf-8',
+                    errors='ignore',
+                )
+                for line in out.splitlines():
+                    if 'LISTENING' in line.upper():
+                        parts = line.split()
+                        if parts:
+                            try:
+                                pid = int(parts[-1])
+                                pids.add(pid)
+                            except ValueError:
+                                pass
+            else:
+                # macOS/Linux: lsof 사용
+                out = subprocess.check_output(
+                    ["bash", "-lc", f"lsof -t -i :{port} -sTCP:LISTEN"],
+                    text=True,
+                    stderr=subprocess.STDOUT,
+                )
+                for line in out.splitlines():
+                    line = line.strip()
+                    if not line:
+                        continue
                     try:
-                        pid = int(parts[-1])
-                        pids.add(pid)
+                        pids.add(int(line))
                     except ValueError:
                         pass
+        except subprocess.CalledProcessError:
+            return []
         return list(pids)
 
     def kill_pids(pids: list[int]):
+        system = platform.system().lower()
         for pid in pids:
             try:
-                subprocess.run(["taskkill", "/PID", str(pid), "/F"], check=False, capture_output=True)
+                if 'windows' in system:
+                    subprocess.run(["taskkill", "/PID", str(pid), "/F"], check=False, capture_output=True)
+                else:
+                    subprocess.run(["kill", "-9", str(pid)], check=False, capture_output=True)
             except Exception:
                 pass
 

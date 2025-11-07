@@ -122,7 +122,7 @@ def main():
     print("테스트 완료!")
     print("="*60)
     print("\n💡 다음 단계:")
-    print("   1. 웹 브라우저에서 reagent_ology.html 열기")
+    print("   1. 웹 브라우저에서 index.html 열기")
     print("   2. 시약 목록에서 'Use with Scale' 버튼 클릭")
     print("   3. 저울 위에 시약을 올리고 무게 측정")
     print("   4. 데이터베이스에 자동 저장 확인")

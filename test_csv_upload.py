@@ -121,7 +121,7 @@ def main():
         print("   웹 UI에서 '저울 CSV 업로드' 메뉴를 통해 이 파일을 업로드할 수 있습니다.")
     
     print("\n💡 다음 단계:")
-    print("   1. 웹 브라우저에서 reagent_ology.html 열기")
+    print("   1. 웹 브라우저에서 index.html 열기")
     print("   2. '저울 CSV 업로드' 메뉴 클릭")
     print("   3. CSV 파일 선택 후 업로드")
     print("   4. 처리 결과 확인")

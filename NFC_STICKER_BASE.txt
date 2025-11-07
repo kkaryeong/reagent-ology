@@ -1,14 +1,14 @@
 Reagent-ology NFC 스티커 안내
 
 스마트폰 스캔 시 열 URL (권장: mDNS .local)
-http://ppofluxus.local:8000/reagent_ology.html#/r/UID
+http://ppofluxus.local:8000/index.html#/r/UID
 
 예시:
-http://ppofluxus.local:8000/reagent_ology.html#/r/04:E4:12:34:56
+http://ppofluxus.local:8000/index.html#/r/04:E4:12:34:56
 
 (대안) LAN IP 기반:
-http://172.30.1.62:8000/reagent_ology.html#/r/UID
-http://172.30.1.62:8000/reagent_ology.html#/r/04:E4:12:34:56
+http://192.168.101.71:8000/index.html#/r/UID
+http://192.168.101.71:8000/index.html#/r/04:E4:12:34:56
 
 주의:
 - PC와 스마트폰은 같은 Wi‑Fi에 연결되어야 합니다.

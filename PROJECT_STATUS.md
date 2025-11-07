@@ -25,7 +25,7 @@ reagent-ology/
 │   ├── usage_logs.csv         # 사용 기록
 │   └── autocomplete.csv       # 자동완성 데이터
 │
-├── reagent_ology.html         # 프론트엔드 UI
+├── index.html                 # 프론트엔드 UI (renamed from reagent_ology.html)
 ├── requirements.txt           # Python 의존성 (pyserial 포함)
 ├── start_server.bat           # 🆕 서버 시작 스크립트
 ├── test_scale_connection.py   # 🆕 저울 연결 테스트
@@ -272,7 +272,7 @@ uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### 3. 프론트엔드 열기
-- 웹 브라우저에서 `reagent_ology.html` 열기
+- 웹 브라우저에서 `index.html` 열기
 - 또는 `http://127.0.0.1:8000` 접속 (정적 파일 서빙 설정 시)
 
 ### 4. 저울 연결 테스트
