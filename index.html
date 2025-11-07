@@ -150,6 +150,7 @@
             <button onclick="navigateTo('discard')">시약 폐기</button>
             <button onclick="navigateTo('inventory')">연구실 보유 물질</button>
             <button onclick="navigateTo('usage')">시약 사용 현황</button>
+            <button onclick="navigateTo('classify')">분류 관리</button>
             <!-- 불필요 탭 숨김: 저울 CSV 업로드 / 자동완성 DB -->
         </nav>
 
@@ -238,6 +239,29 @@
                     <option>Corrosive</option>
                     <option>Oxidizer</option>
                 </select>
+                <select id="filterStorage" onchange="renderList()">
+                    <option value="">보관</option>
+                </select>
+                <select id="filterState" onchange="renderList()">
+                    <option value="">상태</option>
+                    <option value="liquid">liquid</option>
+                    <option value="solid">solid</option>
+                </select>
+                <select id="filterExpiry" onchange="renderList()">
+                    <option value="">유통기한</option>
+                    <option value="expired">만료</option>
+                    <option value="has">유통기한 있음</option>
+                    <option value="none">유통기한 없음</option>
+                </select>
+                <select id="filterDisposal" onchange="renderList()">
+                    <option value="">폐기</option>
+                </select>
+                <select id="filterMetallicity" onchange="renderList()">
+                    <option value="">금속성</option>
+                </select>
+                <select id="filterGroup" onchange="renderList()">
+                    <option value="">족</option>
+                </select>
                 <select id="sortBy" onchange="renderList()">
                     <option value="id">정렬: 등록순</option>
                     <option value="name">이름</option>
@@ -248,6 +272,25 @@
                 <button onclick="exportCSV()" class="small">CSV 내보내기</button>
             </div>
             <ul id="chemical-list"></ul>
+        </div>
+
+        <!-- 분류 관리 탭 -->
+        <div id="classify" class="page">
+            <h2>분류 관리</h2>
+            <p class="meta">금속성/족 옵션을 편집하면 목록 필터 드롭다운에도 반영됩니다. 저장은 로컬 브라우저에 보관됩니다.</p>
+            <div class="controls">
+                <input type="text" id="class-metallicity-input" placeholder="금속성 추가 (예: metal)">
+                <button class="small" onclick="addClassOption('metallicity')">추가</button>
+            </div>
+            <ul id="class-metallicity-list"></ul>
+            <div class="controls" style="margin-top:16px">
+                <input type="text" id="class-group-input" placeholder="족 추가 (예: 3)">
+                <button class="small" onclick="addClassOption('group')">추가</button>
+            </div>
+            <ul id="class-group-list"></ul>
+            <div class="controls" style="margin-top:16px">
+                <button class="small" onclick="resetClassOptions()">기본값으로 재설정</button>
+            </div>
         </div>
 
         <div id="auto-db" class="page">
@@ -822,6 +865,114 @@ function navigateTo(route, param = '') {
     location.hash = path;
 }
 
+// ---- 분류 옵션 관리 (로컬 저장) ----
+const CLASS_METAL_KEY = 'reagentology_class_metallicity';
+const CLASS_GROUP_KEY = 'reagentology_class_group';
+
+function getClassOptions(key, defaults) {
+    try {
+        const raw = localStorage.getItem(key);
+        if(raw) {
+            const arr = JSON.parse(raw);
+            if(Array.isArray(arr)) return arr;
+        }
+    } catch(e) {}
+    return defaults.slice();
+}
+
+function setClassOptions(key, arr) {
+    try { localStorage.setItem(key, JSON.stringify(arr)); } catch(e) {}
+}
+
+function currentMetallicityOptions() {
+    const defaults = ['metal','nonmetal','metalloid'];
+    const saved = getClassOptions(CLASS_METAL_KEY, defaults);
+    // 데이터에서 발견되는 값 합치기
+    const fromData = Array.from(new Set(chemicals.map(c => c.metallicity).filter(Boolean)));
+    const merged = Array.from(new Set([...saved, ...fromData]));
+    return merged;
+}
+
+function currentGroupOptions() {
+    const defaults = ['1','2','17','other'];
+    const saved = getClassOptions(CLASS_GROUP_KEY, defaults);
+    const fromData = Array.from(new Set(chemicals.map(c => c.element_group).filter(Boolean)));
+    const merged = Array.from(new Set([...saved, ...fromData]));
+    return merged;
+}
+
+function renderClassifyPage() {
+    const mList = document.getElementById('class-metallicity-list');
+    const gList = document.getElementById('class-group-list');
+    if(mList) {
+        const metals = getClassOptions(CLASS_METAL_KEY, ['metal','nonmetal','metalloid']);
+        mList.innerHTML = metals.map(v=>`<li>${escapeHtml(v)} <button class="small" onclick="removeClassOption('metallicity','${v}')">삭제</button></li>`).join('');
+    }
+    if(gList) {
+        const groups = getClassOptions(CLASS_GROUP_KEY, ['1','2','17','other']);
+        gList.innerHTML = groups.map(v=>`<li>${escapeHtml(v)} <button class="small" onclick="removeClassOption('group','${v}')">삭제</button></li>`).join('');
+    }
+}
+
+function addClassOption(type) {
+    if(type==='metallicity') {
+        const input = document.getElementById('class-metallicity-input');
+        const val = (input?.value||'').trim(); if(!val) return;
+        const list = getClassOptions(CLASS_METAL_KEY, ['metal','nonmetal','metalloid']);
+        if(!list.includes(val)) list.push(val);
+        setClassOptions(CLASS_METAL_KEY, list);
+        input.value=''; renderClassifyPage(); populateFilterOptions();
+    } else if(type==='group') {
+        const input = document.getElementById('class-group-input');
+        const val = (input?.value||'').trim(); if(!val) return;
+        const list = getClassOptions(CLASS_GROUP_KEY, ['1','2','17','other']);
+        if(!list.includes(val)) list.push(val);
+        setClassOptions(CLASS_GROUP_KEY, list);
+        input.value=''; renderClassifyPage(); populateFilterOptions();
+    }
+}
+
+function removeClassOption(type, val) {
+    if(type==='metallicity') {
+        let list = getClassOptions(CLASS_METAL_KEY, ['metal','nonmetal','metalloid']);
+        list = list.filter(x => x !== val);
+        setClassOptions(CLASS_METAL_KEY, list);
+    } else if(type==='group') {
+        let list = getClassOptions(CLASS_GROUP_KEY, ['1','2','17','other']);
+        list = list.filter(x => x !== val);
+        setClassOptions(CLASS_GROUP_KEY, list);
+    }
+    renderClassifyPage(); populateFilterOptions();
+}
+
+function resetClassOptions() {
+    setClassOptions(CLASS_METAL_KEY, ['metal','nonmetal','metalloid']);
+    setClassOptions(CLASS_GROUP_KEY, ['1','2','17','other']);
+    renderClassifyPage(); populateFilterOptions();
+}
+
+function populateFilterOptions() {
+    // 스토리지 / 폐기: 데이터에서 유니크 값 채우기
+    const fill = (id, values) => {
+        const sel = document.getElementById(id); if(!sel) return;
+        const keep = sel.value;
+        const base = sel.querySelector('option[value=""]');
+        sel.innerHTML = '';
+        if(base) sel.appendChild(base);
+        Array.from(new Set(values.filter(v=>v))).sort((a,b)=>String(a).localeCompare(String(b))).forEach(v=>{
+            const opt=document.createElement('option'); opt.value=String(v); opt.textContent=String(v); sel.appendChild(opt);
+        });
+        if(keep) sel.value = keep;
+    };
+    fill('filterStorage', chemicals.map(c=>c.storage||'').filter(Boolean));
+    fill('filterDisposal', chemicals.map(c=>c.disposal||'').filter(Boolean));
+    // 금속성/족: 사용자 정의 + 데이터
+    const metals = currentMetallicityOptions();
+    const groups = currentGroupOptions();
+    fill('filterMetallicity', metals);
+    fill('filterGroup', groups);
+}
+
 async function saveChemical() {
     const idValue = document.getElementById('edit-id').value;
     console.log('💾 Save Chemical - Edit ID:', idValue); // 디버그
@@ -919,6 +1070,12 @@ function renderList() {
 
     const q = (document.getElementById('search')?.value || '').toLowerCase();
     const ghsFilter = document.getElementById('filterGHS')?.value || '';
+    const storageFilter = document.getElementById('filterStorage')?.value || '';
+    const stateFilter = document.getElementById('filterState')?.value || '';
+    const expiryFilter = document.getElementById('filterExpiry')?.value || '';
+    const disposalFilter = document.getElementById('filterDisposal')?.value || '';
+    const metallicityFilter = document.getElementById('filterMetallicity')?.value || '';
+    const groupFilter = document.getElementById('filterGroup')?.value || '';
     const sortBy = document.getElementById('sortBy')?.value || 'id';
 
     let filtered = chemicals.filter(c => {
@@ -928,6 +1085,18 @@ function renderList() {
         }
         if(ghsFilter) {
             if(!Array.isArray(c.ghs) || !c.ghs.includes(ghsFilter)) return false;
+        }
+        if(storageFilter && (c.storage || '') !== storageFilter) return false;
+        if(stateFilter && (c.state || '') !== stateFilter) return false;
+        if(disposalFilter && (c.disposal || '') !== disposalFilter) return false;
+        if(metallicityFilter && (c.metallicity || '') !== metallicityFilter) return false;
+        if(groupFilter && (c.element_group || '') !== groupFilter) return false;
+        if(expiryFilter) {
+            const exp = c.expiry ? new Date(c.expiry) : null;
+            const now = new Date(); now.setHours(0,0,0,0);
+            if(expiryFilter === 'expired') { if(!(exp && exp < now)) return false; }
+            else if(expiryFilter === 'has') { if(!exp) return false; }
+            else if(expiryFilter === 'none') { if(exp) return false; }
         }
         return true;
     });
@@ -1388,10 +1557,15 @@ async function renderUsageLogList(slug) {
             box.innerHTML = '<li class="empty">기록 없음</li>';
             return;
         }
-        // 정렬 옵션: 기본 최신순, 또는 USE/DISCARD/SCALE 우선 정렬
+        // 필터 + 정렬 옵션 적용
+        const typeSel = document.getElementById('usage-type');
+        const typeFilter = (typeSel?.value || 'all').toLowerCase();
         const sortSel = document.getElementById('usage-sort');
         const sortMode = (sortSel?.value || 'time').toLowerCase();
         const ts = x => new Date(x).getTime();
+        if(typeFilter !== 'all') {
+            logs = logs.filter(l => String(l.source||'').toLowerCase() === typeFilter);
+        }
         if(sortMode === 'use' || sortMode === 'discard' || sortMode === 'scale') {
             logs = [...logs].sort((a,b) => {
                 const pa = (String(a.source||'').toLowerCase() === sortMode) ? 0 : 1;
@@ -1462,15 +1636,22 @@ function showChemicalDetail(id) {
             </div>
 
             <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
-                            <button class="small" onclick="triggerManualMeasurement($chem.id)">수동 변경</button>
+                            <button class="small" onclick="triggerManualMeasurement(${chem.id})">수동 변경</button>
                             <button class="small" onclick="navigateTo('inventory')">목록으로</button>
               <button class="small" onclick="copyReagentLink('${encodeURIComponent(chem.slug)}')">링크 복사</button>
             </div>
 
                         <h3 style="margin-top:16px">사용 기록</h3>
-                        <div class="controls" style="margin-bottom:8px">
-                            <label for="usage-sort">정렬:</label>
-                            <select id="usage-sort" onchange="renderUsageLogList('${chem.slug}')">
+                                    <div class="controls" style="margin-bottom:8px">
+                                        <label for="usage-type">보기:</label>
+                                        <select id="usage-type" onchange="renderUsageLogList('${chem.slug}')">
+                                            <option value="all">전체</option>
+                                            <option value="use">USE</option>
+                                            <option value="discard">DISCARD</option>
+                                            <option value="scale">SCALE</option>
+                                        </select>
+                                        <label for="usage-sort">정렬:</label>
+                                        <select id="usage-sort" onchange="renderUsageLogList('${chem.slug}')">
                                 <option value="time">최신순</option>
                                 <option value="use">USE</option>
                                 <option value="discard">DISCARD</option>
@@ -1635,10 +1816,11 @@ function handleHashRoute() {
     return;
   }
     // 정적 섹션 라우팅
-    const pages = new Set(['about','add','discard','inventory','usage']);
+    const pages = new Set(['about','add','discard','inventory','usage','classify']);
     if(pages.has(route)) {
         showPage(route);
-        if(route === 'inventory') renderList();
+        if(route === 'inventory') { populateFilterOptions(); renderList(); }
+        if(route === 'classify') { renderClassifyPage(); }
         return;
     }
     if(route === 'reagents' && param) {
@@ -1815,6 +1997,7 @@ function logout() {
 async function initApp() {
     await refreshReagents();
     await seedDefaultDataIfNeeded();
+    populateFilterOptions();
     renderList();
     bindAutocomplete();
     bindLocationAutocomplete();
