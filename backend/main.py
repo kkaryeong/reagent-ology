@@ -23,7 +23,6 @@ from .localdb import search_local
 from .utils import slugify
 import re
 import io
-import base64
 try:
     from openpyxl import Workbook
 except Exception:  # pragma: no cover
@@ -61,17 +60,20 @@ app.mount(
     name="static",
 )
 
-# Serve lab.jpg (background). If a real lab.jpg exists in project root use it; else return 1x1 white pixel placeholder.
-_lab_jpg_path = _root / "lab.jpg"
+# Mount assets (images, etc.) under /assets
+_assets_dir = _root / "assets"
+_assets_dir.mkdir(exist_ok=True)
+app.mount(
+    "/assets",
+    StaticFiles(directory=str(_assets_dir), html=False),
+    name="assets",
+)
 
+# Serve lab.jpg (background). If a real lab.jpg exists in project root use it; else return 1x1 white pixel placeholder.
 @app.get("/lab.jpg")
-def serve_lab_jpg():
-    if _lab_jpg_path.exists():
-        return FileResponse(str(_lab_jpg_path), media_type="image/jpeg")
-    # 1x1 white JPEG base64 placeholder
-    placeholder_b64 = ("/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAICAgICAgICAgIDAgIDAwQDAgIDBAQDAwMEBQQFBQQFBQUGBwcGBgYGBgYICQcICAkOCwoLDhESExUUFhYaGBQbGiYBHy8gICQkKicxNTA0GzY3HCEmJCAsLCwsLy8wMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMP/AABEIAAEAAQMBIgACEQEDEQH/xAAbAAABBQEBAAAAAAAAAAAAAAAFAAIDBAYBB//EADwQAAEDAgMFBQcCBwAAAAAAAAEAAgMRBCExBRJBUWFxgZGhsdHw8BMi0RRCUmJy8RUzQ2Ki0v/EABoBAQADAQEBAAAAAAAAAAAAAAABAgMEBQb/xAAtEQACAgEDAgUEAwAAAAAAAAAAAQIRAxIxBEEhUWFx8BMykaGxwdHh8f/aAAwDAQACEQMRAD8A+4gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//2Q==")
-    data = base64.b64decode(placeholder_b64)
-    return Response(content=data, media_type="image/jpeg")
+def legacy_lab_redirect():
+    """Legacy path used by older UI code. Redirect to assets."""
+    return RedirectResponse(url="/assets/lab.jpg")
 
 @app.get("/")
 def root_redirect():
