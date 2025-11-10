@@ -256,7 +256,6 @@
                     <option value="expiry">유통기한</option>
                 </select>
                 <button onclick="(async()=>{await refreshReagents(); rebuildInventoryFilters(); renderList(); appToast('서버에서 최신 데이터를 불러왔습니다.');})()" class="small">서버 새로고침</button>
-                <button onclick="exportCSV()" class="small">CSV 내보내기</button>
                 <button onclick="exportXLSX()" class="small">XLSX 내보내기</button>
             </div>
             <ul id="chemical-list"></ul>
@@ -1337,16 +1336,6 @@ function renderList() {
                 onClick: () => deleteReagent(c),
             },
             {
-                cls: 'use',
-                text: 'Use -10',
-                onClick: () => applyUsage(c, 'use', 10),
-            },
-            {
-                cls: 'discard',
-                text: 'Discard -10',
-                onClick: () => applyUsage(c, 'discard', 10),
-            },
-            {
                 cls: 'scale',
                 text: 'Use with Scale',
                 onClick: () => useWithScale(c),
@@ -1637,43 +1626,7 @@ async function resetUsageStats() {
     }
 }
 
-function exportCSV() {
-    if(!chemicals.length) {
-        appAlert('내보낼 데이터가 없습니다.');
-        return;
-    }
-    const rows = [['id','name','formula','cas','location','storage','state','expiry','quantity_g','volume_ml','density_g_ml','ghs','used','discarded','disposal','nfc_tag_uid']];
-    chemicals.forEach(c => {
-        rows.push([
-            c.id,
-            c.name || '',
-            c.formula || '',
-            c.cas || '',
-            c.location || '',
-            c.storage || '',
-            c.state || '',
-            c.expiry || '',
-            c.quantity ?? 0,
-            c.volume_ml ?? '',
-            c.density ?? '',
-            Array.isArray(c.ghs) ? c.ghs.join(';') : '',
-            c.used ?? 0,
-            c.discarded ?? 0,
-            c.disposal || '',
-            c.nfc_tag_uid || ''
-        ]);
-    });
-    const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `reagentology_export_${new Date().toISOString().slice(0,10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-}
+// CSV 내보내기 기능은 비활성화되었습니다. (XLSX만 제공)
 
 async function exportXLSX(){
     try {
