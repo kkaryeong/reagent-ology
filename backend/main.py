@@ -23,6 +23,7 @@ from .localdb import search_local
 from .utils import slugify
 import re
 import io
+import base64
 try:
     from openpyxl import Workbook
 except Exception:  # pragma: no cover
@@ -59,6 +60,18 @@ app.mount(
     StaticFiles(directory=str(_root), html=True),
     name="static",
 )
+
+# Serve lab.jpg (background). If a real lab.jpg exists in project root use it; else return 1x1 white pixel placeholder.
+_lab_jpg_path = _root / "lab.jpg"
+
+@app.get("/lab.jpg")
+def serve_lab_jpg():
+    if _lab_jpg_path.exists():
+        return FileResponse(str(_lab_jpg_path), media_type="image/jpeg")
+    # 1x1 white JPEG base64 placeholder
+    placeholder_b64 = ("/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAICAgICAgICAgIDAgIDAwQDAgIDBAQDAwMEBQQFBQQFBQUGBwcGBgYGBgYICQcICAkOCwoLDhESExUUFhYaGBQbGiYBHy8gICQkKicxNTA0GzY3HCEmJCAsLCwsLy8wMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMP/AABEIAAEAAQMBIgACEQEDEQH/xAAbAAABBQEBAAAAAAAAAAAAAAAFAAIDBAYBB//EADwQAAEDAgMFBQcCBwAAAAAAAAEAAgMRBCExBRJBUWFxgZGhsdHw8BMi0RRCUmJy8RUzQ2Ki0v/EABoBAQADAQEBAAAAAAAAAAAAAAABAgMEBQb/xAAtEQACAgEDAgUEAwAAAAAAAAAAAQIRAxIxBEEhUWFx8BMykaGxwdHh8f/aAAwDAQACEQMRAD8A+4gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//2Q==")
+    data = base64.b64decode(placeholder_b64)
+    return Response(content=data, media_type="image/jpeg")
 
 @app.get("/")
 def root_redirect():
