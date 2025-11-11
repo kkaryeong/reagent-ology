@@ -2,173 +2,41 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>index</title>
-<style>
-    body { 
-        font-family: Arial, sans-serif; 
-        margin: 0; 
-        padding: 0;
-        background-image: url('lab.jpg');
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-        color: white;
-    }
-    header {
-        display: flex; 
-        justify-content: space-between; 
-        align-items: center; 
-        padding: 10px 20px; 
-        background-color: rgba(144,178,187,0.95);
-        color: white;
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        backdrop-filter: blur(4px);
-    }
-    header h1 { margin: 0; font-size: 1.4rem; }
-    #login-form input { margin-right: 5px; padding:5px; border-radius:3px; border:1px solid #ccc; }
-    #login-form button { padding:5px 10px; border:none; border-radius:3px; background-color:#1b8cae; color:white; cursor:pointer; }
-    #login-form button:hover { background-color:#147d99; }
-
-    nav {
-        display: flex; 
-        justify-content: flex-end; 
-        background-color: rgba(144,178,187,0.95); 
-        padding: 8px 20px;
-    }
-    nav button {
-        padding: 6px 12px;
-        margin-left: 8px;
-        background-color: transparent;
-        color: white;
-        border: none;
-        border-radius: 3px;
-        cursor: pointer;
-        font-weight: 600;
-    }
-    nav button:hover { background-color: rgba(0,86,179,0.2); }
-
-    .page { display: none; margin: 20px; background-color: rgba(0,0,0,0.45); padding: 20px; border-radius: 8px; }
-    #about {
-        display: block;
-        max-height: 700px;
-        overflow-y: auto;
-        padding: 20px;
-        background: rgba(255, 255, 255, 0.12);
-        border-radius: 10px;
-    }
-    #about::-webkit-scrollbar { width: 8px; }
-    #about::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 4px; }
-    .about-section {
-        margin-bottom: 20px;
-        padding: 16px;
-        background: rgba(0, 0, 0, 0.35);
-        border-radius: 10px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-        transition: transform 0.12s;
-    }
-    .about-section:hover { transform: translateY(-4px); }
-    .about-section h3 { margin-top: 0; color: #ffffff; font-size: 1.15em; }
-    .about-section p, .about-section li { line-height: 1.6; color: #ecf0f1; }
-    .about-section ul { padding-left: 20px; }
-    #about h2 { color: #ffffff; }
-
-    li { 
-        margin-bottom: 10px; 
-        padding: 10px;
-        background-color: rgba(79, 128, 147, 0.72);
-        border-radius: 6px;
-        list-style:none;
-    }
-    input, button.action-btn, select { margin-right:5px; padding:6px; border-radius:4px; border:1px solid #ccc; }
-    button.action-btn { cursor:pointer; border:none; color:white; padding:6px 8px; margin-left:6px; }
-    button.action-btn.edit { background-color:#ffc107; color:black; }
-    button.action-btn.edit:hover { background-color:#e0a800; }
-    button.action-btn.delete { background-color:#dc3545; }
-    button.action-btn.delete:hover { background-color:#c82333; }
-    button.action-btn.use { background-color:#28a745; }
-    button.action-btn.use:hover { background-color:#218838; }
-    button.action-btn.discard { background-color:#6c757d; }
-    button.action-btn.discard:hover { background-color:#5a6268; }
-    button.action-btn.scale { background-color:#17a2b8; }
-    button.action-btn.scale:hover { background-color:#138496; }
-
-    .controls { margin-bottom: 12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-    .small { padding:4px 8px; font-size:0.9rem; }
-
-    #chemical-detail { padding: 10px; background: rgba(0,0,0,0.4); border-radius:8px; }
-    .topbar-right { display:flex; gap:8px; align-items:center; }
-    .danger-note { color:#ffdddd; background: rgba(220,53,69,0.12); padding:8px; border-radius:6px; margin-top:8px; }
-    .meta { font-size:0.9rem; color:#e6f1f5; margin-top:8px; }
-
-    /* Usage log panel styling */
-    #usage-log { list-style:none; margin:0; padding:12px 16px; background:rgba(27,140,174,0.35); border-radius:12px; color:#eaf6ff; }
-    #usage-log li { margin:6px 0; }
-    #usage-log li.empty { opacity:0.85; }
-
-    /* App-branded modal/alert */
-    .app-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.55); display:flex; align-items:center; justify-content:center; z-index:2000; }
-    .app-modal { width:min(90%,520px); background:#152833; color:#e8f6ff; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.4); overflow:hidden; }
-    .app-modal header { background:#1b8cae; padding:12px 16px; font-weight:700; }
-    .app-modal .body { padding:16px; white-space:pre-wrap; line-height:1.5; }
-    .app-modal footer { padding:12px 16px; display:flex; gap:8px; justify-content:flex-end; background:rgba(255,255,255,0.03); }
-    .app-btn { padding:8px 14px; border:none; border-radius:6px; cursor:pointer; }
-    .app-btn.primary { background:#1b8cae; color:#fff; }
-    .app-btn.ghost { background:transparent; color:#cfe9f3; border:1px solid rgba(255,255,255,0.2); }
-    .app-toast { position:fixed; left:50%; transform:translateX(-50%); bottom:24px; background:rgba(0,0,0,0.78); color:#fff; padding:10px 14px; border-radius:8px; z-index:2100; max-width:90%; text-align:center; }
-</style>
-</head>
-<body>
-    <!-- 헤더 -->
-    <header>
-        <div id="logo"><h1>Reagent-ology</h1></div>
-        <div class="topbar-right">
-            <span id="whoami" style="font-weight:600;"></span>
-            <button id="logoutBtn" style="display:none;" onclick="logout()" class="small">Logout</button>
+<!DOCTYPE html>
+<html lang="ko">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Reagent-ology (Legacy Redirect)</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin:40px; line-height:1.5; }
+            .box { max-width:640px; margin:auto; padding:32px; border:1px solid #ddd; border-radius:8px; background:#fafafa; }
+            a.button { display:inline-block; background:#0b74d1; color:#fff; padding:10px 18px; border-radius:4px; text-decoration:none; font-weight:600; }
+            small { display:block; margin-top:16px; opacity:.7; }
+        </style>
+        <script>
+            // Minimal redirect, preserving hash fragment if present
+            (function(){
+                try {
+                    var hash = location.hash || '';
+                    var target = (location.origin || '') + '/index.html' + hash;
+                    window.location.replace(target);
+                } catch(e){
+                    window.location.href = '/index.html';
+                }
+            })();
+        </script>
+    </head>
+    <body>
+        <div class="box">
+            <h1>페이지가 이동되었습니다</h1>
+            <p>이 레거시 파일 <code>reagent_ology.html</code> 은 더 이상 사용되지 않습니다. 새로운 단일 페이지 앱은 <code>index.html</code> 에서 제공됩니다.</p>
+            <p>
+                <a href="/index.html" class="button">새 UI 열기</a>
+            </p>
+            <small>북마크를 업데이트해주세요. 이 안내 페이지는 곧 제거될 수 있습니다.</small>
         </div>
-    </header>
-
-    <!-- 로그인 화면 -->
-    <div id="login-page" style="padding:20px;">
-        <h1>Reagent-ology Login</h1>
-        <input type="text" id="username" placeholder="Username">
-        <input type="password" id="password" placeholder="Password">
-        <button onclick="login()">Login</button>
-        <button onclick="signup()">Sign Up</button>
-        <div class="danger-note">
-            <strong>주의:</strong> 현재는 로컬 데모 모드입니다. 실제 운영 시 서버 기반 인증(해시+HTTPS)으로 교체하세요.
-        </div>
-    </div>
-
-    <!-- 메인 영역 -->
-    <div id="main-page" style="display:none; padding:20px;">
-        <!-- 상단 네비게이션 -->
-        <nav>
-            <button onclick="navigateTo('about')">기업 소개</button>
-            <button onclick="navigateTo('add')">시약 등록</button>
-            <button onclick="navigateTo('discard')">시약 폐기</button>
-            <button onclick="navigateTo('inventory')">연구실 보유 물질</button>
-            <button onclick="navigateTo('usage')">시약 사용 현황</button>
-            <!-- 불필요 탭 숨김: 저울 CSV 업로드 / 자동완성 DB -->
-        </nav>
-
-        <!-- 각 페이지 영역 -->
-        <div id="about" class="page">
-            <h2>Reagent-ology 소개</h2>
-            <div class="about-section">
-                <h3>회사 비전</h3>
-                <p>우리는 연구실의 안전하고 효율적인 시약 관리를 위해 최첨단 디지털 솔루션을 제공합니다.</p>
-            </div>
-            <div class="about-section">
-                <h3>주요 기능</h3>
-                <ul>
-                    <li>전 주기 시약 관리 (등록, 사용, 이동, 폐기)</li>
-                    <li>GHS 기반 분류 및 경고 시스템</li>
-                    <li>법적 규제 준수 지원</li>
-                    <li>NFC 스티커 기반 시약 태깅</li>
-                    <li>사용량, 폐기량, 보관 현황 자동 기록</li>
-                </ul>
+    </body>
+</html>
             </div>
             <div class="about-section">
                 <h3>연구실 도입 효과</h3>
@@ -1351,7 +1219,7 @@ async function renderUsageLogList(slug) {
     try {
         const logs = await apiRequest(`/reagents/${encodeURIComponent(slug)}/usage`);
         if(!logs || !logs.length) {
-            box.innerHTML = '<li class="empty">기록 없음</li>';
+            box.innerHTML = '<li>기록 없음</li>';
             return;
         }
         box.innerHTML = logs.map(log => {
@@ -1417,7 +1285,7 @@ function showChemicalDetail(id) {
             </div>
 
             <h3 style="margin-top:16px">사용 기록</h3>
-            <ul id="usage-log"></ul>
+            <ul id="usage-log" style="margin:0;padding-left:18px"></ul>
         `;
         renderUsageLogList(chem.slug);
     }

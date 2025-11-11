@@ -13,7 +13,7 @@ from typing import Dict, List, Optional
 from urllib.parse import quote
 
 import httpx
-from fastapi import FastAPI, HTTPException, Query, status, Response, UploadFile, File
+from fastapi import FastAPI, HTTPException, Query, status, UploadFile, File
 from fastapi.responses import RedirectResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,7 +22,6 @@ from . import schemas, csvdb, localdb
 from .localdb import search_local
 from .utils import slugify
 import re
-import io
 try:
     from openpyxl import Workbook
 except Exception:  # pragma: no cover
@@ -69,11 +68,23 @@ app.mount(
     name="assets",
 )
 
-# Serve lab.jpg (background). If a real lab.jpg exists in project root use it; else return 1x1 white pixel placeholder.
+# Serve lab.jpg (background).
+# Prefer serving the real file directly to avoid issues if the /assets mount isn't active yet.
 @app.get("/lab.jpg")
-def legacy_lab_redirect():
-    """Legacy path used by older UI code. Redirect to assets."""
-    return RedirectResponse(url="/assets/lab.jpg")
+def serve_lab_background():
+    """Serve background image from assets or project root with a tiny placeholder fallback."""
+    asset_jpg = _assets_dir / "lab.jpg"
+    root_jpg = _root / "lab.jpg"
+    if asset_jpg.exists():
+        return FileResponse(str(asset_jpg), media_type="image/jpeg")
+    if root_jpg.exists():
+        return FileResponse(str(root_jpg), media_type="image/jpeg")
+    # 1x1 transparent PNG fallback (base64) to avoid 404 loops
+    import base64
+    png_1x1 = base64.b64decode(
+        b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAn8B9rVwA2IAAAAASUVORK5CYII="
+    )
+    return Response(content=png_1x1, media_type="image/png")
 
 @app.get("/")
 def root_redirect():
@@ -99,10 +110,11 @@ def legacy_typo_redirect():
     return RedirectResponse(url="/index.html")
 
 
+# Single health endpoint
 @app.get("/api/health")
 def health() -> Dict[str, str]:
     """Lightweight health check for launcher/browser readiness."""
-    return {"status": "ok"}
+    return {"status": "ok", "timestamp": datetime.utcnow().isoformat(), "storage": "CSV"}
 
 
 def ensure_unique_slug(base: str, current_id: Optional[int] = None) -> str:
@@ -193,9 +205,7 @@ async def fetch_pubchem_suggestions(query: str, limit: int = 8) -> List[Dict[str
         return suggestions
 
 
-@app.get("/api/health")
-def health() -> Dict[str, str]:
-    return {"status": "ok", "timestamp": datetime.utcnow().isoformat(), "storage": "CSV"}
+## Removed duplicate health endpoint (merged above)
 
 
 @app.get("/api/reagents", response_model=List[schemas.ReagentOut])
